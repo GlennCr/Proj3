@@ -1,0 +1,13 @@
+Icon?
+.DS_Store
+.svn
+nbproject
+Thumbs.db
+*.bak
+*.sass-cache
+application/cache/*
+application/logs/*
+*.komodoproject
+.idea
+*.sublime-project
+*.sublime-workspace
