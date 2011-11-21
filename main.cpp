@@ -344,7 +344,7 @@ struct assign_stmtNode* make_assign_stmtNode()
 	return (struct assign_stmtNode*) malloc(sizeof(struct assign_stmtNode));
 }
 
-struct print_stmtNode* make_assign_stmtNode()
+struct print_stmtNode* make_print_stmtNode()
 {
 	return (struct print_stmtNode*) malloc(sizeof(struct print_stmtNode));
 }
@@ -369,8 +369,7 @@ struct primaryNode* make_primaryNode()
 /*--------------------------------------------------------------------
   PARSING AND BUILDING PARSE TREE
 ---------------------------------------------------------------------*/
-//ADDED PRIMARY NODE
-//NEED TO CHECK
+
 struct primaryNode* primary()
 {
 	struct primaryNode* primar;
@@ -399,17 +398,9 @@ struct primaryNode* primary()
 	return primar;
 }
 
-//type no removed, should never be a type check. No type list!
-
-//NEED TO FIX
+//ok in syntax.h
 struct conditionNode* condition()
-{
-	//	int relop;
-	//struct primaryNode* left_operand;
-	//struct primaryNode* right_operand;
-
-	//printToken(relop); //may be handy
-
+{	//has two primary values
 	struct conditionNode* cond;
 	cond = make_conditionNode();
 
@@ -454,9 +445,8 @@ struct conditionNode* condition()
 
 		return cond;
 
-}//when done here, check over the make while node again to be sure it's ok.
+}
 
-//EDITED
 struct exprNode* expr()
 { //SHOULD NOT BE RECURSIVE
 	struct exprNode* exp;
@@ -547,17 +537,50 @@ struct assign_stmtNode* assign_stmt()
 }
 
 struct while_stmtNode* while_stmt()
-{	//has condition and a body. Condition must be evaluated true to execute body.
+{	//has condition and a body. Condition must be evaluated 'true' to execute body.
 	struct while_stmtNode* wle_stmt;
-	
-	_ttype = getToken();
 	wle_stmt = make_while_stmtNode();
 	
+	_ttype = getToken();
 	if (_ttype == WHILE)
 	{
 		wle_stmt->condition = condition();
 		wle_stmt->body = body();
+	} else
+	{
+		syntax_error("while_stmt(). Failed to get _ttype of WHILE!", _line_no);
+		exit(0);
 	}
+}
+
+//need make_if_stmtNode()
+struct if_stmtNode* if_stmt()
+{
+	struct if_stmtNode* if_stm;
+	if_stm = make_if_stmtNode();
+
+	_ttype = getToken();
+	if(_ttype = IF)
+	{
+		if_stm->condition = condition();
+		if_stm->body = body();
+
+	} else
+	{
+		syntax_error("if_stmt(). Failed to get _ttype of IF!", _line_no);
+		exit(0);
+	}
+
+}
+
+//need make_print_stmtNode()
+struct print_stmtNode print_stmt()
+{
+	struct print_stmtNode* print_stm;
+	print_stm = make_print_stmtNode();
+
+	_ttype = getToken();
+	if(_ttype = PRINT)
 }
 
 struct stmtNode* stmt()
@@ -582,7 +605,20 @@ struct stmtNode* stmt()
 	if (_ttype == WHILE) // while_stmt
 	{	ungetToken();
 		stm->while_stmt = while_stmt();
-		stm->stmtType = WHILE;	
+		stm->stmtType = WHILE;
+	}
+	else
+	if (_ttype == IF)
+	{	ungetToken();
+		stm->if_stmt = if_stmt();
+		stm->stmtType = IF;
+		
+	} else
+	if (_ttype == PRINT)
+	{	
+		ungetToken();
+		stm->print_stmt = print_stmt();
+		stm->stmtType = PRINT;
 	} else // syntax error
 	{
 		syntax_error("stmt. ID or WHILE expected", _line_no);
