@@ -1,0 +1,143 @@
+//struct 
+programNode* program();
+	declNode* decl();
+		var_decl_sectionNode* var_decl_section();
+			var_decl_listNode* var_decl_list();
+				var_declNode* var_decl();
+						id_listNode* id_list();
+	bodyNode* body();
+		stmt_listNode* stmt_list();
+			stmtNode* stmt();
+				//stmt_listNode* stmt_list();
+				while_stmtNode* while_stmt();
+				if_stmtNode*	if_stmt();
+				assign_stmtNode* assign_stmt();
+				print_stmtNode* print_stmt();
+					conditionNode* condition();
+					exprNode* expr();
+					primaryNode* primary();
+
+//cut code
+
+int add_symbol(const char* symname)
+{
+	int i = START_SYM_TABLE;
+	for(; i < symcount; i++)
+	{
+		if(strcmp(symtable[i]->symname, symname) == 0)
+		{
+			return -1; //declaration exists already!
+		}
+	}
+	
+	symtable[symcount] = make_symbol_entry();	//int
+	symtable[symcount]->type_no = typecount;
+	strcpy(symtable[symcount]->symname, symname);
+	symtable[symcount]->is_type = true;
+	symcount++;
+	
+	return symcount-1; //RETURN LOCATION OF SYMBOL WE JUST ADDED
+}
+
+int add_symbol_var(const char* symname)
+{
+	int i = START_SYM_TABLE;
+	for(; i < symcount; i++)
+	{
+		if(strcmp(symtable[i]->symname, symname) == 0)
+		{
+			return -1; //declaration exists already!
+		}
+	}
+	
+	symtable[symcount] = make_symbol_entry();	//int
+	symtable[symcount]->type_no = typecount;
+	strcpy(symtable[symcount]->symname, symname);
+	symtable[symcount]->is_type = false;
+	symcount++;
+
+	return symcount-1; //RETURN LOCATION OF SYMBOL WE JUST ADDED
+}
+
+int checksym(const char* sym)
+{	//CHECKS IF A SYMBOL IS IN THE TABLE. //IF EXISTS, RETURN THE TYPE's INDEX. //IF NOT EXISTS, RETURN 0
+	
+	int i = START_SYM_TABLE;
+	for(; i < symcount; i++)
+	{
+		if(strcmp(symtable[i]->symname, sym) == 0)
+		{
+			return i;
+		}
+	}
+	return 0;
+}
+
+void reserve_symbols()
+{
+	symtable[symcount] = make_symbol_entry();	//int
+	symtable[symcount]->type_no = symcount;
+	strcpy(symtable[symcount]->symname, "INT");
+	symtable[symcount]->is_type = true;
+	symcount++;
+
+	symtable[symcount] = make_symbol_entry();	//real
+	symtable[symcount]->type_no = symcount;
+	strcpy(symtable[symcount]->symname, "REAL");
+	symtable[symcount]->is_type = true;
+	symcount++;
+
+	symtable[symcount] = make_symbol_entry();	//string
+	symtable[symcount]->type_no = symcount;
+	strcpy(symtable[symcount]->symname, "STRING");
+	symtable[symcount]->is_type = true;
+	symcount++;
+	
+	symtable[symcount] = make_symbol_entry();	//boolean
+	symtable[symcount]->type_no = symcount;
+	strcpy(symtable[symcount]->symname, "BOOLEAN");
+	symtable[symcount]->is_type = true;
+	symcount++;
+
+}
+
+void print_symbol_table()
+{
+	int i = START_SYM_TABLE;
+	for(; i < symcount; i++)
+	{
+		//if(symtable[i]->is_type)
+		//printf("%s ", symtable[i]->symname);
+		
+
+		if(symtable[i]->can_print)
+		{
+			symtable[i]->can_print = 0;
+			int r = i+1;
+			int sawone = 0;
+			int type_no = symtable[i]->type_no;
+			
+			for(; r < symcount; r++)
+			{
+				if(symtable[r]->type_no == type_no)
+				{
+					sawone++;
+					if(sawone == 1)
+					{
+						printf("%s : ", symtable[i]->symname);
+					}
+					printf("%s ", symtable[r]->symname);
+					symtable[r]->can_print = 0;
+				}
+			}
+			if(sawone == 1)
+			printf("#\n");
+		}
+		//else
+		//{
+		//	return;
+		//}
+		
+	}
+
+}
