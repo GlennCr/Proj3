@@ -22,18 +22,19 @@ struct declNode {
 	struct var_decl_sectionNode* var_decl_section;      
 };
 
-struct var_decl_sectionNode {
+// not needed?
+/*struct var_decl_sectionNode {
 	struct var_decl_listNode* var_decl_list;          
 };
-
+// not needed?
 struct  var_decl_listNode {
 	struct var_declNode * var_decl;
         struct var_decl_listNode* var_decl_list;
 };
-
+*/
 struct var_declNode {
 	struct id_listNode* id_list;
-	struct type_nameNode* type_name;
+	struct primaryNode* var;
 };
 
 struct id_listNode {

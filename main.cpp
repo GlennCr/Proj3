@@ -67,25 +67,51 @@ void syntax_error(char* NT, int _line_no)
 
 
 //ADDED SYMBOL TABLE AND ENTRY STRUCT
+const int MAX_MEM_POOL = 100;
 
 char _token[MAX_TOKEN_LENGTH];      // _token string
 int  _ttype;                        // _token type
 int  _activeToken = FALSE;                  
 int  _tokenLength;
 
-int	 _symcount = START_SYM_TABLE; //int at 10
-
-int _implicit = 0;
-int _type_loc = 0; //INDEX OF TYPE WE ARE CURRENTLY CONSIDERING.
-
-int _type_no = 0;
-int _type_count = START_SYM_TABLE;
+int _mem_pool_alloc = 0;
+char* _var_table[MAX_MEM_POOL];		//contains strings of ID's
+int _var_val_table[MAX_MEM_POOL];	//contains values of ID's
 
 int _do_var_dec = 0;
 
 int _line_no = 1;
 
 //----------------------------------------------------------
+//mine
+
+void push_var(char* newVar)
+{
+	if(_mem_pool_alloc < MAX_MEM_POOL)
+	{
+		for(int i = 0; (i < _mem_pool_alloc) & (_mem_pool_alloc > 0), i++ )
+		{
+			if( strcmp(_var_table[_mem_pool_alloc], newVar) == 0)
+			{
+				syntax_error("add var declaration, aka 'push_var()'. Tried to declare var more than once!", _line_no);
+				exit(0);
+
+			}
+
+		}
+		//did not find this var in the var table. Can add it to the var table.
+		strcpy( _var_table[_mem_pool_alloc], newVar);
+		_var_val_table[_mem_pool_alloc] = 0; //initial value of a var is 0.
+
+	}
+	else
+	{
+		syntax_error("add var declaration, aka 'push_var()'. Input tried to declare more values than MAX_MEM_POOL. Try increasing this value in main.cpp", line_no);
+		exit(0);
+
+	}
+}
+
 int skipSpace()
 {
    char c;
@@ -574,7 +600,7 @@ struct if_stmtNode* if_stmt()
 }
 
 //need make_print_stmtNode()
-struct print_stmtNode print_stmt()
+struct print_stmtNode print_stmt() 
 {
 	struct print_stmtNode* print_stm;
 	print_stm = make_print_stmtNode();
@@ -680,6 +706,7 @@ struct id_listNode* id_list()
 	struct id_listNode* idList;
 	idList = make_id_listNode();
 	_ttype = getToken();
+
 	if (_ttype == ID)
 	{	
 		idList->id = (char*) malloc(_tokenLength+1);
@@ -735,36 +762,27 @@ struct id_listNode* id_list()
 
 }
 
+// looks good
 struct var_declNode* var_decl()
 {
 	struct var_declNode* varDecl;
 	varDecl = make_var_declNode();
+
+	varDecl->id_list = id_list();
+
 	_ttype = getToken();
-	if (_ttype == ID)
-	{	ungetToken();
-	
-		varDecl->id_list = id_list();
-		_ttype = getToken();
-		if (_ttype == COLON)
-		
-		{	varDecl->type_name = type_name();
-			
-			_ttype = getToken();
-			if (_ttype == SEMICOLON)
-			{	
-
-				//resolve_typeno(1000, varDecl->type_name->_type_no); //1000 is the "uncertain of _type_no value"
-				
-				return varDecl;
-			}
-			else
-			{	syntax_error("var_decl. SEMICOLON expected", _line_no);
-				exit(0);
-			}
-		} 
+	if (_ttype == SEMICOLON)
+	{				
+		return varDecl;
 	}
-}	
-
+	else
+	{	syntax_error("var_decl. SEMICOLON expected", _line_no);
+		exit(0);
+	}
+}
+	
+/*
+//not needed?
 //VAR_DECL_LIST
 struct var_decl_listNode* var_decl_list()
 {
@@ -789,7 +807,7 @@ struct var_decl_listNode* var_decl_list()
 		exit(0);
 	} 
 }
-
+//not needed?
 struct var_decl_sectionNode* var_decl_section()
 {
 	struct var_decl_sectionNode *varDeclSection;
@@ -804,59 +822,38 @@ struct var_decl_sectionNode* var_decl_section()
 	{	syntax_error("var_decl_section. VAR expected", _line_no);
 		exit(0);
 	}
-}
+}*/
 
-
+// looks good
 struct declNode* decl()
 {	
 	struct declNode* dec;
 	dec = make_declNode();
 
+
 	_ttype = getToken();
-	if (_ttype == TYPE)
-	{	ungetToken();
-		dec->type_decl_section = type_decl_section();
-		_ttype = getToken();
-		if (_ttype == VAR)
-    		{	// type_decl_list is epsilon
-			// or type_decl already parsed and the 
-			// next _token is checked
-			ungetToken();
-       			dec->var_decl_section = var_decl_section();
-    		} else
-		{	ungetToken();
-			dec->var_decl_section = NULL;
+	if (_ttype == VAR)
+		{	//var_decl section should start with VAR
+		getToken();
+		if(_ttype == ID)
+   		{ //VAR should be followed immediately by an ID, or nothing. (no ID's)
+   			ungetToken();
+   			dec->var_decl_section = var_decl();
 		}
-		return dec;
 	} else
-	{
-		dec->type_decl_section = NULL; 
-	    	if (_ttype == VAR)
-    		{	// type_decl_list is epsilon
-			// or type_decl already parsed and the 
-			// next _token is checked
-			ungetToken(); 
-       			dec->var_decl_section = var_decl_section();
-			return dec;
-    		} else
-		{	if (_ttype == LBRACE)
-			{	ungetToken();	
-				dec->var_decl_section = NULL;
-				return dec;
-			} else
-			{	syntax_error("decl. LBRACE expected", _line_no);
-				exit(0);		// stop after first syntax error
-			}
-		}
+	{	ungetToken();
+		dec->var_decl_section = NULL;
 	}
+	return dec;
 }
 
+//looks good
 struct programNode* program()
 {	struct programNode* prog;
 
 	prog = make_programNode();
 	_ttype = getToken();
-	if ((_ttype == TYPE) | (_ttype == VAR) | (_ttype == LBRACE))
+	if ((_ttype == VAR) | (_ttype == LBRACE))
 	{	ungetToken();  
 		prog->decl = decl();
 		prog->body = body();
