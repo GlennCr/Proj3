@@ -653,35 +653,35 @@ struct stmtNode* stmt()
 	}	
 }
 
+//looks good
 struct stmt_listNode* stmt_list()
 {
 	struct stmt_listNode* stmtList;
 
 	_ttype = getToken();
-
-
-	if ((_ttype == ID)|(_ttype == WHILE))
+	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == ))
 	{	ungetToken();
 		stmtList = make_stmt_listNode();
 		stmtList->stmt = stmt();
+
 		_ttype = getToken();
-		if ((_ttype == ID) | (_ttype == WHILE))
+		if ((_ttype == ID) | (_ttype == WHILE) | (_ttype == IF) | (_ttype == ))
 		{	ungetToken();
 			stmtList->stmt_list = stmt_list();
 			return stmtList;
-		} else	// If the next _token is not in FOLLOW(stmt_list), 
-			// let the caller handle it. 
+		} else
 		{	ungetToken();
 			return stmtList;
 		}
 	} else
 	{
-		syntax_error("stmt_list. ID or WHILE expected", _line_no);
+		syntax_error("stmt_list. Statement expected", _line_no);
 		exit(0);
 	}
 	
 }
 
+// looks good
 struct bodyNode* body()
 {	struct bodyNode* bod;
 
