@@ -100,6 +100,7 @@ void push_var(char* newVar)
 
 		}
 		//did not find this var in the var table. Can add it to the var table.
+		// _var_table[_mem_pool_alloc] = (char*) malloc(_tokenLength+1);
 		strcpy( _var_table[_mem_pool_alloc], newVar);
 		_var_val_table[_mem_pool_alloc] = 0; //initial value of a var is 0.
 
@@ -701,6 +702,7 @@ struct bodyNode* body()
 	}
 }
 
+//looks good
 struct id_listNode* id_list()
 {
 	struct id_listNode* idList;
@@ -712,53 +714,19 @@ struct id_listNode* id_list()
 		idList->id = (char*) malloc(_tokenLength+1);
 		strcpy(idList->id, _token);
 		
-		int id_ind;
-		if(_do_var_dec==1) //if we're doing variables, create variable symbol table entries. (have is_type set to false)
-			id_ind = add_symbol_var(_token);
-		else
-			id_ind = add_symbol(_token);
-		
-		if(id_ind < 0)
-		{
-			if(_do_var_dec == 1) //if we're doing variables, check variable related rules
-			{
-				int varind = checksym(_token);
-				if(symtable[varind]->is_type)
-				{
-					printf("ERROR CODE %d", 1);
-					exit(0);
-				}
-				printf("ERROR CODE %d", 2);
-				exit(0);
-			}
-			else
-			printf("ERROR CODE %d", 0);
-			exit(0);
-		}
-		else
-		{
-			symtable[id_ind]->_type_no = 1000; //I set this to 1000 because anything in an id_list is guaranteed to have a type_name, but we don't know it YET.
-		}
+		push_var(idList->id); //will throw error on it's own.
 		
 		_ttype = getToken();
 		if (_ttype == COMMA)
 		{
 			idList->id_list = id_list();
-			return idList;
-			
-		} else
-		if (_ttype == COLON)
-		{	ungetToken();
-			idList->id_list = NULL;
-			return idList;
-		} else
-		{	syntax_error("id_list. COMMA or COLON expected", _line_no);
-			exit(0);
 		}
 	} else
 	{	syntax_error("id_list. ID expected", _line_no);
 		exit(0);
 	}
+
+	return idList;
 
 }
 
