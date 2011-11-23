@@ -531,6 +531,7 @@ struct exprNode* expr()
 }
 
 //TO FIX
+//must enforce semicolon ending
 struct assign_stmtNode* assign_stmt()
 {	struct assign_stmtNode* assignStmt;
 
@@ -608,6 +609,13 @@ struct print_stmtNode print_stmt()
 
 	_ttype = getToken();
 	if(_ttype = PRINT)
+	{
+		//set id
+		print_stm->id = (char*) malloc(_tokenLength+1);
+		strcpy(print_stm->id, _token);
+
+	}
+	 // should error out if not end in semicolor?
 }
 
 struct stmtNode* stmt()
@@ -621,13 +629,14 @@ struct stmtNode* stmt()
 		stm->assign_stmt = assign_stmt();
 		stm->stmtType = ASSIGN;
 		_ttype = getToken();
-		if (_ttype == SEMICOLON)
-		{	return stm;
-		}
-		else
-		{	syntax_error("stmt. SEMICOLON expected", _line_no);
-			exit(0);
-		}
+		//if (_ttype == SEMICOLON)
+		//{	
+			return stm;
+		//}
+		//else
+		//{	syntax_error("stmt. SEMICOLON expected", _line_no);
+		//	exit(0);
+		//}
 	} else
 	if (_ttype == WHILE) // while_stmt
 	{	ungetToken();

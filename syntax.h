@@ -55,9 +55,9 @@ struct stmtNode {
 	int stmtType;           // WHILE, ASSIGN, IF, PRINT
 	union {
 		struct while_stmtNode* while_stmt;
-		struct if_stmtNode* assign_stmt;
+		struct if_stmtNode* if_stmt;
 		struct assign_stmtNode* assign_stmt;
-		struct print_stmtNode* assign_stmt;
+		struct print_stmtNode* print_stmt;
 	};
 };     
 
