@@ -433,36 +433,19 @@ struct conditionNode* condition()
 
 	_ttype = getToken();
 	if((_ttype == NUM) | (_ttype == ID))
-	{
-		char lop_token[100]; //save _token just in case
-		strcpy(lop_token, _token);
-		
-		int lop_ind = checksym(lop_token);
-		if(lop_ind == 0)
-		{
-			syntax_error("condition(). Left Operand not declared!")
-		}
-		
+	{		
 		ungetToken();
 		cond->left_operand = primary();
+		
 		_ttype = getToken();
-
 		if((_ttype == NOTEQUAL) | (_ttype == GREATER) | (_ttype == LESS) | (_ttype == LTEQ) | (_ttype == GTEQ) )
 		{	//has relop, infers there should be a primary next.
 			cond->relop = _ttype;
 			cond->right_operand = primary();
 
 			char rop_token[101]; //save _token just in case
-			strcpy(rop_token, _token);	
-			
-			int rop_ind = checksym(rop_token);
-			if(rop_ind == 0)
-			{
-				syntax_error("condition(). Right operand is undeclared!");
-				exit(0);
-			}
-
-		}
+			strcpy(rop_token, _token);
+					}
 		else
 		{	//no relop, ungetToken for further processing.
 			syntax_error("condition(). No rel op in condition!");
@@ -474,6 +457,7 @@ struct conditionNode* condition()
 
 }
 
+// looks good
 struct exprNode* expr()
 { //SHOULD NOT BE RECURSIVE
 	struct exprNode* exp;
@@ -513,8 +497,7 @@ struct exprNode* expr()
 				syntax_error("expr. Primary expected for right operand!", _line_no);
 				exit(0);
 			}
-		} 
-		else	
+		} else	
 		if (_ttype == SEMICOLON)
 		{	exp->tag = PRIMARY;
 			ungetToken();
@@ -530,8 +513,7 @@ struct exprNode* expr()
 	}
 }
 
-//TO FIX
-//must enforce semicolon ending
+// Looks good
 struct assign_stmtNode* assign_stmt()
 {	struct assign_stmtNode* assignStmt;
 
@@ -541,18 +523,18 @@ struct assign_stmtNode* assign_stmt()
 		assignStmt->id = (char *) malloc((_tokenLength+1)*sizeof(char));
 		strcpy(assignStmt->id,_token);
 		
-		//_implicit definition code
-		//not used
-		if(checksym(_token) == 0)
-		{
-			syntax_error("assign_stmt. _token not defined.", _line_no)
-			exit(0);
-		}
-		
 		_ttype = getToken();
 		if (_ttype == EQUAL)
 		{	assignStmt->expr = expr();
-			return assignStmt;
+
+			_ttype = getToken();
+			if(_ttype == SEMICOLON)
+			{
+				return assignStmt;
+			} else
+			{	syntax_error("assign_stmt. SEMICOLON expected", _line_no);
+				exit(0);
+			}
 		} else
 		{	syntax_error("assign_stmt. EQUAL expected", _line_no);
 			exit(0);
@@ -564,6 +546,7 @@ struct assign_stmtNode* assign_stmt()
 	}
 }
 
+// looks good
 struct while_stmtNode* while_stmt()
 {	//has condition and a body. Condition must be evaluated 'true' to execute body.
 	struct while_stmtNode* wle_stmt;
@@ -576,12 +559,12 @@ struct while_stmtNode* while_stmt()
 		wle_stmt->body = body();
 	} else
 	{
-		syntax_error("while_stmt(). Failed to get _ttype of WHILE!", _line_no);
+		syntax_error("while_stmt(). Expected WHILE!", _line_no);
 		exit(0);
 	}
 }
 
-//need make_if_stmtNode()
+// looks good
 struct if_stmtNode* if_stmt()
 {
 	struct if_stmtNode* if_stm;
@@ -595,29 +578,49 @@ struct if_stmtNode* if_stmt()
 
 	} else
 	{
-		syntax_error("if_stmt(). Failed to get _ttype of IF!", _line_no);
+		syntax_error("if_stmt(). Expected IF!", _line_no);
 		exit(0);
 	}
 
 }
 
-//need make_print_stmtNode()
+// looks good
 struct print_stmtNode print_stmt() 
 {
 	struct print_stmtNode* print_stm;
 	print_stm = make_print_stmtNode();
 
 	_ttype = getToken();
-	if(_ttype = PRINT)
+	if(_ttype == PRINT)
 	{
-		//set id
-		print_stm->id = (char*) malloc(_tokenLength+1);
-		strcpy(print_stm->id, _token);
+		_ttype = getToken();
+		if(_ttype == ID)
+		{
+			print_stm->id = (char*) malloc(_tokenLength+1);
+			strcpy(print_stm->id, _token);
 
+			_ttype = getToken();
+			if(_ttype == SEMICOLON)
+			{
+				return print_stm;
+			} else
+			{
+				syntax_error("stmtNode(). Expected semicolon.", _line_no);
+				exit(0);
+			}
+		} else
+		{
+			syntax_error("stmtNode(). Expected ID.", _line_no);
+			exit(0);
+		}
+	} else
+	{
+		syntax_error("stmtNode(). Expected PRINT.", _line_no);
+		exit(0);
 	}
-	 // should error out if not end in semicolor?
 }
 
+// looks good
 struct stmtNode* stmt()
 {
 	struct stmtNode* stm;
@@ -629,14 +632,7 @@ struct stmtNode* stmt()
 		stm->assign_stmt = assign_stmt();
 		stm->stmtType = ASSIGN;
 		_ttype = getToken();
-		//if (_ttype == SEMICOLON)
-		//{	
 			return stm;
-		//}
-		//else
-		//{	syntax_error("stmt. SEMICOLON expected", _line_no);
-		//	exit(0);
-		//}
 	} else
 	if (_ttype == WHILE) // while_stmt
 	{	ungetToken();
@@ -648,7 +644,6 @@ struct stmtNode* stmt()
 	{	ungetToken();
 		stm->if_stmt = if_stmt();
 		stm->stmtType = IF;
-		
 	} else
 	if (_ttype == PRINT)
 	{	
@@ -668,13 +663,13 @@ struct stmt_listNode* stmt_list()
 	struct stmt_listNode* stmtList;
 
 	_ttype = getToken();
-	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == ))
+	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
 	{	ungetToken();
 		stmtList = make_stmt_listNode();
 		stmtList->stmt = stmt();
 
 		_ttype = getToken();
-		if ((_ttype == ID) | (_ttype == WHILE) | (_ttype == IF) | (_ttype == ))
+		if ((_ttype == ID) | (_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
 		{	ungetToken();
 			stmtList->stmt_list = stmt_list();
 			return stmtList;
