@@ -5,11 +5,10 @@
   PARSE TREE TYPES
 ------------------------------------------------------------*/
 
-struct symbol_entry
-{   bool is_type;
-	int type_no;
-	char symname[100]; //hurgh, this does not sit well with me....
-	int can_print;
+struct var
+{
+	char id[100];
+	int value;
 };
 
 struct programNode {
@@ -59,14 +58,14 @@ struct stmtNode {
 		struct if_stmtNode* if_stmt;
 		struct assign_stmtNode* assign_stmt;
 		struct print_stmtNode* print_stmt;
-		struct goto_stmtNode* goto_stmt;
+		//struct goto_stmtNode* goto_stmt;
 	};
 };
 
-struct goto_stmtNode {
-	struct stmtNode* target;	
+// struct goto_stmtNode {
+// 	struct stmtNode* target;	
 
-};
+// };
 
 struct while_stmtNode {
 	struct conditionNode* condition;

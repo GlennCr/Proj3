@@ -74,11 +74,8 @@ int  _ttype;                        // _token type
 int  _activeToken = FALSE;                  
 int  _tokenLength;
 
-int _mem_pool_alloc = 0;
-char* _var_table[MAX_MEM_POOL];		//contains strings of ID's
-int _var_val_table[MAX_MEM_POOL];	//contains values of ID's
-
-int _do_var_dec = 0;
+int _var_count = 0;
+struct id* _var_table[MAX_MEM_POOL];		//contains strings of ID's
 
 int _line_no = 1;
 
@@ -87,22 +84,23 @@ int _line_no = 1;
 
 void push_var(char* newVar)
 {
-	if(_mem_pool_alloc < MAX_MEM_POOL)
+	if(_id_count < MAX_MEM_POOL)
 	{
-		for(int i = 0; (i < _mem_pool_alloc) & (_mem_pool_alloc > 0), i++ )
+		for(int i = 0; (i < _var_count) & (_var_count > 0), i++ )
 		{
-			if( strcmp(_var_table[_mem_pool_alloc], newVar) == 0)
+			if( strcmp(_var_table[_var_count]->id, newVar) == 0)
 			{
 				syntax_error("add var declaration, aka 'push_var()'. Tried to declare var more than once!", _line_no);
 				exit(0);
-
 			}
-
 		}
 		//did not find this var in the var table. Can add it to the var table.
-		// _var_table[_mem_pool_alloc] = (char*) malloc(_tokenLength+1);
-		strcpy( _var_table[_mem_pool_alloc], newVar);
-		_var_val_table[_mem_pool_alloc] = 0; //initial value of a var is 0.
+		_var_table[_var_count] = make_var();
+
+		strcpy( _var_table[_var_count]->id, newVar);
+		_var_table[_var_count]->val = 0; //initial value of a var is 0.
+
+		_var_count++;
 
 	}
 	else
@@ -300,16 +298,16 @@ int getToken()
 
 /*----------------------------------------------------------------------------
 SYNTAX ANALYSIS SECTION
-----------------------------------------------------------------------------*/
-//NEED TO EXPAND?
-#define PRIMARY 0
-#define EXPR 1
-
-
+---------------------------------------------------------------------
 
 /*--------------------------------------------------------------------
   CREATING PARSE TREE NODE
 ---------------------------------------------------------------------*/
+
+struct var* make_var()
+{
+	return (struct var*) malloc(sizeof(struct var));
+}
 
 struct programNode* make_programNode()
 {	
@@ -442,9 +440,6 @@ struct conditionNode* condition()
 		{	//has relop, infers there should be a primary next.
 			cond->relop = _ttype;
 			cond->right_operand = primary();
-
-			char rop_token[101]; //save _token just in case
-			strcpy(rop_token, _token);
 					}
 		else
 		{	//no relop, ungetToken for further processing.
@@ -511,19 +506,6 @@ struct exprNode* expr()
 	{	syntax_error("expr. Primary expected for left operand!", _line_no);
 		exit(0);
 	}
-}
-
-//Appends a node to a statement list.
-void appendNode(struct stmtNode stmt_list, struct stmtNode node)
-{
-	if (stmt_list->next == NULL)
-	{
-		stmt_list->next = node; //hit end of list, set NOOP and return.
-	} else
-	{
-		appendNoop(stmt_list->next, node); //not end of list, continue.
-	}
-	return;
 }
 
 // Looks good
@@ -643,33 +625,75 @@ struct stmtNode* stmt()
 	return stm;
 }
 
+struct stmtNode* stmt_noop()
+{
+	struct stmtNode* noop;
+	noop = make_stmtNode();
+	noop->stmtType = NOOP;
+	return noop;
+
+}
+
+struct stmtNode* stmt_goto()
+{
+	struct stmtNode* gt;
+	gt = make_stmtNode();
+	noop->stmtType = GOTO;
+	return gt;
+
+}
+
 //looks good
 struct stmtNode* stmt_list()
 {
-	struct stmtNode* stmt;
-	struct stmtNode* stmtList;
+	struct stmtNode* st;
+	struct stmtNode* stL;
 
-	stmt = stmt();
+	st = stmt();
 
 	_ttype = getToken();
 	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
-	{	
-		stmtList = make_stmt_listNode();
-		stmtList->stmt = stmt();
+	{	ungetToken();
+		
+		stL = make_stmt_listNode();
+		stL = stmt_list();
 
-		_ttype = getToken();
-		if ((_ttype == ID) | (_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
+		if(st->stmtType == IF)
 		{
-			stmtList->stmt_list = stmt_list();
-			return stmtList;
+			struct stmtNode* noop;
+			noop = stmt_noop();
+			noop->next = stL;
+			
+			st->next = noop; //appending noop to st
+			st->if_stmt->condition->falseBranch = noop; //set false branch to noop.
+			appendNode(st->if_stmt->condition->trueBranch, noop); //append noop to trueBranch of condition.
+
+			return st;
+			
 		} else
+		if(st->stmtType == WHILE)
 		{
-			return stmtList;
+			struct stmtNode* noop;
+			noop = stmt_noop();
+			noop->next = stL;
+
+			struct stmtNode* gt;
+			gt = stmt_goto();
+			gt->next = st;
+
+			st->next = noop; //appending noop to st
+			st->if_stmt->condition->falseBranch = noop; //set false branch to noop of st.
+			appendNode(st->if_stmt->condition->trueBranch, gt); //append goto to trueBranch of conditoion.
+
+			return st;
+
 		}
+
+
 	} else
 	{
-		syntax_error("stmt_list. Statement expected", _line_no);
-		exit(0);
+		ungetToken();
+		return st;
 	}
 	
 }
@@ -782,11 +806,63 @@ struct programNode* program()
 	}
 }
 
+//Appends a node to a statement list.
+void appendNode(struct stmtNode stmt_list, struct stmtNode node)
+{
+	if (stmt_list->next == NULL)
+	{
+		stmt_list->next = node; //hit end of list, set NOOP and return.
+	} else
+	{
+		appendNode(stmt_list->next, node); //not end of list, continue.
+	}
+	return;
+}
+
+void execute(struct programNode* program)
+{
+	struct stmtNode* pc;
+	pc = program->body->stmt_list; //set program counter to first node of the program's body.
+
+	while(pc != NULL)
+	{
+		
+		switch(pc->stmtType)
+		{
+			case ASSIGN:
+				
+				pc = 
+				break;
+			case IF:
+
+				break;
+			case WHILE:	
+				break;
+
+			case PRINT:
+				
+				break;
+			case GOTO:
+
+				break;
+			case NOOP:
+
+				break;
+		}
+
+	}
+
+}
+
 //
 ////
 //
 public int main(int argc, char const *argv[])
 {
-	/* code */
+	struct programNode* prog_node;
+	prog_node = program();
+
+	execute(program);
+
 	return 0;
 }
