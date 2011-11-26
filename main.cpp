@@ -638,8 +638,7 @@ struct stmtNode* stmt()
 	{	ungetToken();
 		stm->while_stmt = while_stmt();
 		stm->stmtType = WHILE;
-	}
-	else
+	} else
 	if (_ttype == IF)
 	{	ungetToken();
 		stm->if_stmt = if_stmt();
