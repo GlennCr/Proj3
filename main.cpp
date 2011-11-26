@@ -513,35 +513,41 @@ struct exprNode* expr()
 	}
 }
 
+//Appends a node to a statement list.
+void appendNode(struct stmtNode stmt_list, struct stmtNode node)
+{
+	if (stmt_list->next == NULL)
+	{
+		stmt_list->next = node; //hit end of list, set NOOP and return.
+	} else
+	{
+		appendNoop(stmt_list->next, node); //not end of list, continue.
+	}
+	return;
+}
+
 // Looks good
 struct assign_stmtNode* assign_stmt()
 {	struct assign_stmtNode* assignStmt;
 
+	assignStmt = make_assign_stmtNode();
+	assignStmt->id = (char *) malloc((_tokenLength+1)*sizeof(char));
+	strcpy(assignStmt->id,_token);
+	
 	_ttype = getToken();
-	if (_ttype == ID) 
-	{	assignStmt = make_assign_stmtNode();
-		assignStmt->id = (char *) malloc((_tokenLength+1)*sizeof(char));
-		strcpy(assignStmt->id,_token);
-		
-		_ttype = getToken();
-		if (_ttype == EQUAL)
-		{	assignStmt->expr = expr();
+	if (_ttype == EQUAL)
+	{	assignStmt->expr = expr();
 
-			_ttype = getToken();
-			if(_ttype == SEMICOLON)
-			{
-				return assignStmt;
-			} else
-			{	syntax_error("assign_stmt. SEMICOLON expected", _line_no);
-				exit(0);
-			}
+		_ttype = getToken();
+		if(_ttype == SEMICOLON)
+		{
+			return assignStmt;
 		} else
-		{	syntax_error("assign_stmt. EQUAL expected", _line_no);
+		{	syntax_error("assign_stmt. SEMICOLON expected", _line_no);
 			exit(0);
 		}
 	} else
-	{
-		syntax_error("assign_stmt. ID expected", _line_no);
+	{	syntax_error("assign_stmt. EQUAL expected", _line_no);
 		exit(0);
 	}
 }
@@ -550,18 +556,11 @@ struct assign_stmtNode* assign_stmt()
 struct while_stmtNode* while_stmt()
 {	//has condition and a body. Condition must be evaluated 'true' to execute body.
 	struct while_stmtNode* wle_stmt;
-	wle_stmt = make_while_stmtNode();
-	
-	_ttype = getToken();
-	if (_ttype == WHILE)
-	{
-		wle_stmt->condition = condition();
-		wle_stmt->body = body();
-	} else
-	{
-		syntax_error("while_stmt(). Expected WHILE!", _line_no);
-		exit(0);
-	}
+	wle_stmt = make_while_stmtNode();	
+
+	wle_stmt->condition = condition();
+	wle_stmt->body = body();
+	wle_stmt->condition->trueBranch = wle_stmt->body->stmtList;
 }
 
 // looks good
@@ -570,17 +569,9 @@ struct if_stmtNode* if_stmt()
 	struct if_stmtNode* if_stm;
 	if_stm = make_if_stmtNode();
 
-	_ttype = getToken();
-	if(_ttype = IF)
-	{
-		if_stm->condition = condition();
-		if_stm->body = body();
-
-	} else
-	{
-		syntax_error("if_stmt(). Expected IF!", _line_no);
-		exit(0);
-	}
+	if_stm->condition = condition();
+	if_stm->body = body();
+	if_stm->condition->trueBranch = if_stm->body->stmtList;
 
 }
 
@@ -591,89 +582,88 @@ struct print_stmtNode print_stmt()
 	print_stm = make_print_stmtNode();
 
 	_ttype = getToken();
-	if(_ttype == PRINT)
+	if(_ttype == ID)
 	{
-		_ttype = getToken();
-		if(_ttype == ID)
-		{
-			print_stm->id = (char*) malloc(_tokenLength+1);
-			strcpy(print_stm->id, _token);
+		print_stm->id = (char*) malloc(_tokenLength+1);
+		strcpy(print_stm->id, _token);
 
-			_ttype = getToken();
-			if(_ttype == SEMICOLON)
-			{
-				return print_stm;
-			} else
-			{
-				syntax_error("stmtNode(). Expected semicolon.", _line_no);
-				exit(0);
-			}
+		_ttype = getToken();
+		if(_ttype == SEMICOLON)
+		{
+			return print_stm;
 		} else
 		{
-			syntax_error("stmtNode(). Expected ID.", _line_no);
+			syntax_error("stmtNode(). Expected semicolon.", _line_no);
 			exit(0);
 		}
 	} else
 	{
-		syntax_error("stmtNode(). Expected PRINT.", _line_no);
+		syntax_error("stmtNode(). Expected ID.", _line_no);
 		exit(0);
 	}
+	
 }
 
 // looks good
 struct stmtNode* stmt()
 {
 	struct stmtNode* stm;
-	_ttype = getToken();
 	stm = make_stmtNode();
 
+	_ttype = getToken();
 	if (_ttype == ID) // assign_stmt
-	{	ungetToken();
+	{	
 		stm->assign_stmt = assign_stmt();
 		stm->stmtType = ASSIGN;
 		_ttype = getToken();
-			return stm;
 	} else
 	if (_ttype == WHILE) // while_stmt
-	{	ungetToken();
+	{	
+		struct gotoNode* gt;
+		gt->target = stm;
 		stm->while_stmt = while_stmt();
 		stm->stmtType = WHILE;
 	} else
 	if (_ttype == IF)
-	{	ungetToken();
+	{	
 		stm->if_stmt = if_stmt();
 		stm->stmtType = IF;
 	} else
 	if (_ttype == PRINT)
 	{	
-		ungetToken();
+		
 		stm->print_stmt = print_stmt();
 		stm->stmtType = PRINT;
 	} else // syntax error
 	{
-		syntax_error("stmt. ID or WHILE expected", _line_no);
+		syntax_error("stmt. Statement expected", _line_no);
 		exit(0);
 	}	
+
+	return stm;
 }
 
 //looks good
-struct stmt_listNode* stmt_list()
+struct stmtNode* stmt_list()
 {
-	struct stmt_listNode* stmtList;
+	struct stmtNode* stmt;
+	struct stmtNode* stmtList;
+
+	stmt = stmt();
 
 	_ttype = getToken();
 	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
-	{	ungetToken();
+	{	
 		stmtList = make_stmt_listNode();
 		stmtList->stmt = stmt();
 
 		_ttype = getToken();
 		if ((_ttype == ID) | (_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
-		{	ungetToken();
+		{
 			stmtList->stmt_list = stmt_list();
 			return stmtList;
 		} else
-		{	ungetToken();
+		{
 			return stmtList;
 		}
 	} else
@@ -751,49 +741,6 @@ struct var_declNode* var_decl()
 		exit(0);
 	}
 }
-	
-/*
-//not needed?
-//VAR_DECL_LIST
-struct var_decl_listNode* var_decl_list()
-{
-	struct var_decl_listNode* varDeclList;
-	varDeclList = make_var_decl_listNode();
-
-	_ttype = getToken();
-	if (_ttype == ID)
-	{	ungetToken();
-		varDeclList->var_decl = var_decl();
-		_ttype = getToken();
-		if (_ttype == ID)
-		{	ungetToken();
-			varDeclList->var_decl_list = var_decl_list();
-			return varDeclList;
-		}  else	
-		{	ungetToken();
-			return varDeclList;
-		} 
-	} else
-	{	syntax_error("var_decl_list. ID expected", _line_no);
-		exit(0);
-	} 
-}
-//not needed?
-struct var_decl_sectionNode* var_decl_section()
-{
-	struct var_decl_sectionNode *varDeclSection;
-	varDeclSection = make_var_decl_sectionNode();
-
-	_ttype = getToken();
-	if (_ttype == VAR)
-	{	// no need to ungetToken() 
-		varDeclSection->var_decl_list = var_decl_list();  
-		return varDeclSection;
-	} else
-	{	syntax_error("var_decl_section. VAR expected", _line_no);
-		exit(0);
-	}
-}*/
 
 // looks good
 struct declNode* decl()

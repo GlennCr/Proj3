@@ -22,16 +22,6 @@ struct declNode {
 	struct var_decl_sectionNode* var_decl_section;      
 };
 
-// not needed?
-/*struct var_decl_sectionNode {
-	struct var_decl_listNode* var_decl_list;          
-};
-// not needed?
-struct  var_decl_listNode {
-	struct var_declNode * var_decl;
-        struct var_decl_listNode* var_decl_list;
-};
-*/
 struct var_declNode {
 	struct id_listNode* id_list;
 	struct primaryNode* var;
@@ -43,23 +33,40 @@ struct id_listNode {
 };
 
 struct bodyNode {
-	struct stmt_listNode* stmt_list;
+	struct stmtNode* stmt_list;
 };
 
-struct stmt_listNode {
-	struct stmtNode* stmt;
-	struct stmt_listNode * stmt_list;
-};
+// struct stmt_listNode {
+// 	struct stmtNode* stmt;
+// 	struct stmt_listNode * stmt_list;
+// };
+
+// struct stmtNode {
+// 	int stmtType;           // WHILE, ASSIGN, IF, PRINT
+// 	union {
+// 		struct while_stmtNode* while_stmt;
+// 		struct if_stmtNode* if_stmt;
+// 		struct assign_stmtNode* assign_stmt;
+// 		struct print_stmtNode* print_stmt;
+// 	};
+// };     
 
 struct stmtNode {
-	int stmtType;           // WHILE, ASSIGN, IF, PRINT
+	int stmtType;           // WHILE, ASSIGN, IF, PRINT, NOOP, GOTO
+	struct stmtNode next;
 	union {
 		struct while_stmtNode* while_stmt;
 		struct if_stmtNode* if_stmt;
 		struct assign_stmtNode* assign_stmt;
 		struct print_stmtNode* print_stmt;
+		struct goto_stmtNode* goto_stmt;
 	};
-};     
+};
+
+struct goto_stmtNode {
+	struct stmtNode* target;	
+
+};
 
 struct while_stmtNode {
 	struct conditionNode* condition;
@@ -69,12 +76,15 @@ struct while_stmtNode {
 struct if_stmtNode {
 	struct conditionNode* condition;
 	struct bodyNode* body;
+
 };
 
 struct conditionNode {
 	struct primaryNode* left_operand;
 	int relop;
 	struct primaryNode* right_operand;
+	struct stmtNode* trueBranch;
+	struct stmtNode* falseBranch;
 };
 
 struct assign_stmtNode {
@@ -117,6 +127,8 @@ struct id_listNode* 			make_id_listNode();
 struct bodyNode* 				make_bodyNode();
 struct stmt_listNode* 			make_stmt_listNode();
 struct stmtNode* 				make_stmtNode();
+struct noop_stmtNode*			make_noop_stmtNode();
+struct goto_stmtNode*			make_goto_stmtNode();
 struct while_stmtNode* 			make_while_stmtNode();
 struct if_stmtNode* 			make_if_stmtNode();
 struct assign_stmtNode* 		make_assign_stmtNode();
@@ -140,8 +152,11 @@ struct		stmt_listNode* stmt_list();
 struct			stmtNode* stmt();
 struct				//stmt_listNode* stmt_list();
 struct				assign_stmtNode* assign_stmt();
+struct 				noop_stmtNode*	noop_stmt();
+struct 				goto_stmtNode*	goto_stmt();
 struct				while_stmtNode* while_stmt();
 struct				if_stmtNode*	if_stmt();
 struct					conditionNode* condition();
 struct					exprNode* expr();
 struct					primaryNode* primary();
+struct 					
