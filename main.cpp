@@ -827,26 +827,75 @@ void execute(struct programNode* program)
 	while(pc != NULL)
 	{
 		
+		struct stmtNode* node;
+		node = pc;
+
 		switch(pc->stmtType)
 		{
 			case ASSIGN:
-				
-				pc = 
+				//code here
+				pc = node->next;
 				break;
 			case IF:
-
+				//code here
+				struct conditionNode* condition;
+				condition = node->if_stmt->condition;
+				//evaluate condition
+				//	pc = condition->trueBranch;
+				//or
+				//	pc = condition->falseBranch;
 				break;
 			case WHILE:	
-				break;
+				//code here
+				struct conditionNode* condition;
+				condition = node->while_stmt->condition;
+				bool branchTrue = false;
+				int lop, rop;
 
-			case PRINT:
+				lop = getVal(condition->leftOperand);
+				rop = getVal(condition->rightOperand);
 				
+				switch(condition->relop)
+				{
+					case LESS:
+						if(lop < rop)
+							branchTrue = true;
+						break;
+					case LTEQ:
+						if(lop <= rop)
+							branchTrue = true;
+						break;
+					case GREATER:
+						if(lop > rop)
+							branchTrue = true;
+						break;
+					case GTEQ:
+						if(lop >= rop)
+							branchTrue = true;
+						break;
+					case NOTEQUAL:
+						if(lop != rop)
+							branchTrue = true;
+						break;
+					case EQUAL:
+						if(lop == rop)
+							branchTrue = true;
+						break;
+				}
+				//evaluate condition
+				//	pc = condition->trueBranch;
+				//or
+				//	pc = condition->falseBranch;
+				break;
+			case PRINT:
+				//code here
+				pc = node->next;
 				break;
 			case GOTO:
-
+				pc = node->next;
 				break;
 			case NOOP:
-
+				pc = node->next;
 				break;
 		}
 
