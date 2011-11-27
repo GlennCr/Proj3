@@ -8,7 +8,7 @@
 struct var
 {
 	char id[100];
-	int value;
+	int ival;
 };
 
 struct programNode {
@@ -107,7 +107,6 @@ struct exprNode {
 
 struct primaryNode {
 	int tag;	// NUM or ID
-	int type_no;	//>=10
 	int ival;
 	char id[100];
 };

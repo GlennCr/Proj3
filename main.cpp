@@ -98,7 +98,7 @@ void push_var(char* newVar)
 		_var_table[_var_count] = make_var();
 
 		strcpy( _var_table[_var_count]->id, newVar);
-		_var_table[_var_count]->val = 0; //initial value of a var is 0.
+		_var_table[_var_count]->ival = 0; //initial value of a var is 0.
 
 		_var_count++;
 
@@ -817,6 +817,42 @@ void appendNode(struct stmtNode stmt_list, struct stmtNode node)
 		appendNode(stmt_list->next, node); //not end of list, continue.
 	}
 	return;
+}
+
+struct var* getVar(char* id)
+{
+	//search the var table for this id.
+	//return that node if found
+	//error out if not found.
+	for(int i; i < _var_count; i++)
+	{
+		if(strcmp(_var_table[i]->id, id) == 0)
+			return _var_table[i]; 
+	}
+	else
+	{
+		printf("%s not found in var table.\n", id);
+		exit(0);
+	}
+
+}
+
+int getVal(struct primaryNode* prim)
+{
+	//return the value of a primary.
+	//easy if it's a num
+	//needs a func call to getVar if not.
+	if(prim->tag == NUM)
+	{
+		return prim->ival;
+	} else
+	{
+		struct var* out;
+		out = getVar(prim->id);
+		return out->ival;
+
+	}
+	return 0;
 }
 
 void execute(struct programNode* program)
