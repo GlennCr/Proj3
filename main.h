@@ -8,7 +8,6 @@
 
 #define MAX_TOKEN_LENGTH			100
 #define MAX_SYMTABLE_LENGTH			100
-#define START_SYM_TABLE 			10
 #define KEYWORDS 					14
 
 #define RESERVED 37

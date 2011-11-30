@@ -67,37 +67,39 @@ void syntax_error(char* NT, int _line_no)
 
 
 //ADDED SYMBOL TABLE AND ENTRY STRUCT
-const int MAX_MEM_POOL = 100;
 
-char _token[MAX_TOKEN_LENGTH];      // _token string
+char _token[ MAX_TOKEN_LENGTH ];      // _token string
 int  _ttype;                        // _token type
-int  _activeToken = FALSE;                  
+int  _activeToken = false;                  
 int  _tokenLength;
 
 int _var_count = 0;
-struct id* _var_table[MAX_MEM_POOL];		//contains strings of ID's
+struct symbol* _var_table[ MAX_SYMTABLE_LENGTH ] ;		//contains table of vars
 
 int _line_no = 1;
 
 //----------------------------------------------------------
 //mine
 
-void push_var(char* newVar)
+void push_symbol(char* varID)
 {
-	if(_id_count < MAX_MEM_POOL)
+	if(_var_count < MAX_SYMTABLE_LENGTH)
 	{
-		for(int i = 0; (i < _var_count) & (_var_count > 0), i++ )
+		int i;
+		for( i = 0; (i < _var_count) & (_var_count > 0); i++ )
 		{
-			if( strcmp(_var_table[_var_count]->id, newVar) == 0)
+			if( strcmp(_var_table[_var_count]->id, varID) == 0)
 			{
-				syntax_error("add var declaration, aka 'push_var()'. Tried to declare var more than once!", _line_no);
+				syntax_error("add var declaration, aka 'push_symbol()'. Tried to declare var more than once!", _line_no);
 				exit(0);
 			}
 		}
 		//did not find this var in the var table. Can add it to the var table.
-		_var_table[_var_count] = make_var();
+		struct symbol* newvar;
+		newvar = make_symbol();
+		_var_table[_var_count] = newvar;
 
-		strcpy( _var_table[_var_count]->id, newVar);
+		strcpy( _var_table[_var_count]->id, varID);
 		_var_table[_var_count]->ival = 0; //initial value of a var is 0.
 
 		_var_count++;
@@ -105,7 +107,7 @@ void push_var(char* newVar)
 	}
 	else
 	{
-		syntax_error("add var declaration, aka 'push_var()'. Input tried to declare more values than MAX_MEM_POOL. Try increasing this value in main.cpp", line_no);
+		syntax_error("add var declaration, aka 'push_symbol()'. Input tried to declare more values than MAX_SYMTABLE_LENGTH. Try increasing this value in main.cpp", _line_no);
 		exit(0);
 
 	}
@@ -134,7 +136,7 @@ int isKeyword(char *s)
      for (i = 1; i <= KEYWORDS; i++)
 	if (strcmp(_reserved[i],s) == 0)
 	   return i;
-     return FALSE;
+     return false;
 }
 
 /* ungetToken() simply sets a flag so that when getToken() is called
@@ -145,7 +147,7 @@ int isKeyword(char *s)
 */
 void ungetToken() //did you mean ungetc()? 
 {
-    _activeToken = TRUE;
+    _activeToken = true;
 }
 
 
@@ -230,7 +232,7 @@ int getToken()
 {	char c;
  
        if (_activeToken)
-       { _activeToken = FALSE;
+       { _activeToken = false;
          return _ttype;
        }   // we do not need an else because the function returns in the body 
            // of the if
@@ -304,9 +306,9 @@ SYNTAX ANALYSIS SECTION
   CREATING PARSE TREE NODE
 ---------------------------------------------------------------------*/
 
-struct var* make_var()
+struct symbol* make_symbol()
 {
-	return (struct var*) malloc(sizeof(struct var));
+	return (struct symbol*) malloc(sizeof(struct symbol));
 }
 
 struct programNode* make_programNode()
@@ -317,16 +319,6 @@ struct programNode* make_programNode()
 struct declNode* make_declNode()
 {
 	return (struct declNode*) malloc(sizeof(struct declNode));
-}
-
-struct var_decl_sectionNode* make_var_decl_sectionNode()
-{
-	return (struct var_decl_sectionNode*) malloc(sizeof(struct var_decl_sectionNode));
-}
-
-struct var_decl_listNode* make_var_decl_listNode()
-{
-	return (struct var_decl_listNode*) malloc(sizeof(struct var_decl_listNode));
 }
 
 struct var_declNode* make_var_declNode()
@@ -344,10 +336,10 @@ struct bodyNode* make_bodyNode()
 	return (struct bodyNode*) malloc(sizeof(struct bodyNode));
 }
 
-struct stmt_listNode* make_stmt_listNode()
-{
-	return (struct stmt_listNode*) malloc(sizeof(struct stmt_listNode));
-}
+// struct stmt_listNode* make_stmt_listNode()
+// {
+// 	return (struct stmt_listNode*) malloc(sizeof(struct stmt_listNode));
+// }
 
 struct stmtNode* make_stmtNode()
 {
@@ -402,14 +394,16 @@ struct primaryNode* primary()
 	primar = make_primaryNode();
 
 	_ttype = getToken();
+		
 	if((_ttype == NUM) | (_ttype == ID))
 	{
+		printf("!!Read %s while parsing PRIMARY on line %d\n", _token, _line_no);
 		//primar->tag = _ttype;
 		if(_ttype == NUM)
 		{	primar->ival = atoi(_token);
 			strcpy(primar->id, "NUM");
 		}
-		if(_ttype == ID)
+		else if(_ttype == ID)
 		{	
 			strcpy(primar->id, _token);
 		}
@@ -420,6 +414,8 @@ struct primaryNode* primary()
 		}
 
 	}
+	
+	printf("!!Done parsing PRIMARY on line %d\n", _line_no);
 	return primar;
 }
 
@@ -443,7 +439,7 @@ struct conditionNode* condition()
 					}
 		else
 		{	//no relop, ungetToken for further processing.
-			syntax_error("condition(). No rel op in condition!");
+			syntax_error("condition(). No rel op in condition!", _line_no);
 			exit(0);
 		}
 	}
@@ -455,31 +451,37 @@ struct conditionNode* condition()
 // looks good
 struct exprNode* expr()
 { //SHOULD NOT BE RECURSIVE
-	struct exprNode* exp;
+	struct exprNode* expr;
 	
 	_ttype = getToken();
 	if ((_ttype == ID)| (_ttype == NUM))
 	{	
-		exp = make_exprNode();
+		expr = make_exprNode();
 		ungetToken();
-		exp->leftOperand = primary(); //get left operand.
+		
+		printf("!!Reading LOP of EXP on line %d\n", _line_no);
+		expr->left_operand = primary(); //get left operand.
 
 		_ttype = getToken();
 		if ( (_ttype == PLUS) | (_ttype == MINUS) | (_ttype == MULT) | (_ttype == DIV) )
 		{	
-			exp->operator = _ttype;
+			printf("!!Read BINOP on line %d\n", _line_no);
+		
+			expr->binop = _ttype;
 
 			_ttype = getToken();
 			if ((_ttype == ID)| (_ttype == NUM))
 			{	
-				exp->tag = EXPR;
+				printf("!!Reading ROP of EXP on line %d\n", _line_no);
+		
+				expr->tag = EXPR;
 				ungetToken();
-				exp->rightOperand = primary(); //get right operand.
+				expr->right_operand = primary(); //get right operand.
 
 				_ttype = getToken();
 				if(_ttype == SEMICOLON)
 				{
-					return exp;
+					return expr;
 				}
 				else
 				{
@@ -494,8 +496,8 @@ struct exprNode* expr()
 			}
 		} else	
 		if (_ttype == SEMICOLON)
-		{	exp->tag = PRIMARY;
-			ungetToken();
+		{	expr->tag = PRIMARY;
+			//ungetToken();
 			return expr;
 		} 
 		else
@@ -518,7 +520,9 @@ struct assign_stmtNode* assign_stmt()
 	
 	_ttype = getToken();
 	if (_ttype == EQUAL)
-	{	assignStmt->expr = expr();
+	{	
+		printf("!!Parsing rigghts hand expr on line %d\n", _line_no);
+		assignStmt->expr = expr();
 
 		_ttype = getToken();
 		if(_ttype == SEMICOLON)
@@ -542,7 +546,7 @@ struct while_stmtNode* while_stmt()
 
 	wle_stmt->condition = condition();
 	wle_stmt->body = body();
-	wle_stmt->condition->trueBranch = wle_stmt->body->stmtList;
+	wle_stmt->condition->trueBranch = wle_stmt->body->stmt_list;
 }
 
 // looks good
@@ -553,12 +557,12 @@ struct if_stmtNode* if_stmt()
 
 	if_stm->condition = condition();
 	if_stm->body = body();
-	if_stm->condition->trueBranch = if_stm->body->stmtList;
+	if_stm->condition->trueBranch = if_stm->body->stmt_list;
 
 }
 
 // looks good
-struct print_stmtNode print_stmt() 
+struct print_stmtNode* print_stmt() 
 {
 	struct print_stmtNode* print_stm;
 	print_stm = make_print_stmtNode();
@@ -589,31 +593,36 @@ struct print_stmtNode print_stmt()
 // looks good
 struct stmtNode* stmt()
 {
+	printf("!!Parsing STMT on line %d\n", _line_no);
 	struct stmtNode* stm;
 	stm = make_stmtNode();
-
+	
 	_ttype = getToken();
 	if (_ttype == ID) // assign_stmt
 	{	
+		printf("!!Parsing as ASSIGN on line %d\n", _line_no);
 		stm->assign_stmt = assign_stmt();
 		stm->stmtType = ASSIGN;
-		_ttype = getToken();
+		//_ttype = getToken();
 	} else
 	if (_ttype == WHILE) // while_stmt
 	{	
-		struct gotoNode* gt;
-		gt->target = stm;
+		printf("!!Parsing as WHILE on line %d\n", _line_no);
+		//struct stmtNode* gt;
+		//gt = stmt_goto();
+		//gt->next = stm;
 		stm->while_stmt = while_stmt();
 		stm->stmtType = WHILE;
 	} else
 	if (_ttype == IF)
 	{	
+		printf("!!Parsing as IF on line %d\n", _line_no);
 		stm->if_stmt = if_stmt();
 		stm->stmtType = IF;
 	} else
 	if (_ttype == PRINT)
 	{	
-		
+		printf("!!Parsing as PRINT on line %d\n", _line_no);
 		stm->print_stmt = print_stmt();
 		stm->stmtType = PRINT;
 	} else // syntax error
@@ -630,6 +639,7 @@ struct stmtNode* stmt_noop()
 	struct stmtNode* noop;
 	noop = make_stmtNode();
 	noop->stmtType = NOOP;
+	noop->next = NULL;
 	return noop;
 
 }
@@ -638,28 +648,36 @@ struct stmtNode* stmt_goto()
 {
 	struct stmtNode* gt;
 	gt = make_stmtNode();
-	noop->stmtType = GOTO;
+	gt->stmtType = GOTO;
+	gt->next = NULL;
 	return gt;
 
 }
 
 //looks good
+//What it Does:
+//Creates a statement node, the actual node we'll keep.
+//Sets this statement's next value and sets up its unions values etc.
+
 struct stmtNode* stmt_list()
 {
 	struct stmtNode* st;
 	struct stmtNode* stL;
 
+	st = make_stmtNode();
+	st->next = NULL;
 	st = stmt();
 
 	_ttype = getToken();
 	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
 	{	ungetToken();
 		
-		stL = make_stmt_listNode();
+		stL = make_stmtNode();
 		stL = stmt_list();
 
 		if(st->stmtType == IF)
 		{
+			printf("!!Linking IF on line %d\n", _line_no);
 			struct stmtNode* noop;
 			noop = stmt_noop();
 			noop->next = stL;
@@ -673,6 +691,7 @@ struct stmtNode* stmt_list()
 		} else
 		if(st->stmtType == WHILE)
 		{
+			printf("!!Linking WHILE on line %d\n", _line_no);
 			struct stmtNode* noop;
 			noop = stmt_noop();
 			noop->next = stL;
@@ -686,10 +705,7 @@ struct stmtNode* stmt_list()
 			appendNode(st->if_stmt->condition->trueBranch, gt); //append goto to trueBranch of conditoion.
 
 			return st;
-
 		}
-
-
 	} else
 	{
 		ungetToken();
@@ -722,21 +738,25 @@ struct bodyNode* body()
 //looks good
 struct id_listNode* id_list()
 {
+	printf("!!making an id list\n");
 	struct id_listNode* idList;
 	idList = make_id_listNode();
-	_ttype = getToken();
 
+	_ttype = getToken();
 	if (_ttype == ID)
 	{	
 		idList->id = (char*) malloc(_tokenLength+1);
 		strcpy(idList->id, _token);
 		
-		push_var(idList->id); //will throw error on it's own.
+		push_symbol(idList->id); //will throw error on it's own.
 		
 		_ttype = getToken();
 		if (_ttype == COMMA)
 		{
 			idList->id_list = id_list();
+		} else
+		{ //if not a comma, put it back
+			ungetToken();
 		}
 	} else
 	{	syntax_error("id_list. ID expected", _line_no);
@@ -750,6 +770,7 @@ struct id_listNode* id_list()
 // looks good
 struct var_declNode* var_decl()
 {
+	printf("!!making a var_declNode\n");
 	struct var_declNode* varDecl;
 	varDecl = make_var_declNode();
 
@@ -769,14 +790,16 @@ struct var_declNode* var_decl()
 // looks good
 struct declNode* decl()
 {	
+	printf("!!Making a decl node\n");
 	struct declNode* dec;
 	dec = make_declNode();
 
-
 	_ttype = getToken();
+	printf("!!got %s\n", _token);
 	if (_ttype == VAR)
 		{	//var_decl section should start with VAR
-		getToken();
+		_ttype = getToken();
+		printf("!!got %s\n", _token);
 		if(_ttype == ID)
    		{ //VAR should be followed immediately by an ID, or nothing. (no ID's)
    			ungetToken();
@@ -790,7 +813,7 @@ struct declNode* decl()
 }
 
 //looks good
-struct programNode* program()
+struct programNode* program_node()
 {	struct programNode* prog;
 
 	prog = make_programNode();
@@ -798,6 +821,7 @@ struct programNode* program()
 	if ((_ttype == VAR) | (_ttype == LBRACE))
 	{	ungetToken();  
 		prog->decl = decl();
+		printf("!!Done parsing declarations\n\n");
 		prog->body = body();
 		return prog;
 	} else
@@ -807,7 +831,7 @@ struct programNode* program()
 }
 
 //Appends a node to a statement list.
-void appendNode(struct stmtNode stmt_list, struct stmtNode node)
+void appendNode(struct stmtNode* stmt_list, struct stmtNode* node)
 {
 	if (stmt_list->next == NULL)
 	{
@@ -816,25 +840,22 @@ void appendNode(struct stmtNode stmt_list, struct stmtNode node)
 	{
 		appendNode(stmt_list->next, node); //not end of list, continue.
 	}
-	return;
 }
 
-struct var* getVar(char* id)
+struct symbol* getSymbol(char* id)
 {
 	//search the var table for this id.
 	//return that node if found
 	//error out if not found.
-	for(int i; i < _var_count; i++)
+	int i;
+	for(i = 0; i < _var_count; i++)
 	{
 		if(strcmp(_var_table[i]->id, id) == 0)
 			return _var_table[i]; 
 	}
-	else
-	{
-		printf("%s not found in var table.\n", id);
-		exit(0);
-	}
-
+	
+	printf("%s not found in symbol table.\n", id);
+	exit(0);	
 }
 
 int getVal(struct primaryNode* prim)
@@ -847,86 +868,142 @@ int getVal(struct primaryNode* prim)
 		return prim->ival;
 	} else
 	{
-		struct var* out;
-		out = getVar(prim->id);
+		struct symbol* out;
+		out = getSymbol(prim->id);
 		return out->ival;
 
 	}
 	return 0;
 }
 
+bool evalCondition(struct conditionNode* cond)
+{
+	int lop, rop;
+
+	lop = getVal(cond->left_operand);
+	rop = getVal(cond->right_operand);
+	
+	switch(cond->relop)
+	{
+		case LESS:
+			if(lop < rop)
+				return true;
+			break;
+		case LTEQ:
+			if(lop <= rop)
+				return true;
+			break;
+		case GREATER:
+			if(lop > rop)
+				return true;
+			break;
+		case GTEQ:
+			if(lop >= rop)
+				return true;
+			break;
+		case NOTEQUAL:
+			if(lop != rop)
+				return true;
+			break;
+		case EQUAL:
+			if(lop == rop)
+				return true;
+			break;
+	}
+	return false;
+}
+
 void execute(struct programNode* program)
 {
 	struct stmtNode* pc;
+	struct stmtNode* node;
 	pc = program->body->stmt_list; //set program counter to first node of the program's body.
 
 	while(pc != NULL)
 	{
 		
-		struct stmtNode* node;
 		node = pc;
 
-		switch(pc->stmtType)
+		switch(pc->stmtType) 
 		{
 			case ASSIGN:
-				//code here
+			{ 
+							
+				struct assign_stmtNode* assign_stmt;
+				assign_stmt = pc->assign_stmt;
+				
+				struct symbol* leftOp;
+				leftOp = getSymbol(assign_stmt->id); //get value to assign
+				
+				struct exprNode* expr;
+				expr = assign_stmt->expr;
+				
+
+				if(expr->tag == PRIMARY)
+				{
+					int valta = getVal(expr->left_operand);
+					leftOp->ival = valta;
+				} else
+				if(expr->tag == EXPR)
+				{
+					int exp_lop = getVal(expr->left_operand);
+					int exp_rop = getVal(expr->right_operand);
+					int exp_binop = expr->binop;
+					switch(exp_binop)
+					{
+						case PLUS:
+							leftOp->ival = exp_lop + exp_rop;
+							break;
+						case MINUS:
+							leftOp->ival = exp_lop - exp_rop;
+							break;
+						case MULT:
+							leftOp->ival = exp_lop * exp_rop;
+							break;
+						case DIV:
+							leftOp->ival = (int) (exp_lop / exp_rop) - ((exp_lop / exp_rop)% 1) ;
+							break;
+						default:
+							syntax_error("execute assign. Expected operator!", _line_no);
+							exit(0);
+					}
+				}
+
 				pc = node->next;
-				break;
+					break;
+			}
+				
 			case IF:
+			{
 				//code here
 				struct conditionNode* condition;
 				condition = node->if_stmt->condition;
-				//evaluate condition
-				//	pc = condition->trueBranch;
-				//or
-				//	pc = condition->falseBranch;
+
+				if( evalCondition(condition) )
+					pc = condition->trueBranch;
+				else
+					pc = condition->falseBranch;
 				break;
-			case WHILE:	
-				//code here
+			}
+			case WHILE:
+			{
 				struct conditionNode* condition;
 				condition = node->while_stmt->condition;
-				bool branchTrue = false;
-				int lop, rop;
 
-				lop = getVal(condition->leftOperand);
-				rop = getVal(condition->rightOperand);
-				
-				switch(condition->relop)
-				{
-					case LESS:
-						if(lop < rop)
-							branchTrue = true;
-						break;
-					case LTEQ:
-						if(lop <= rop)
-							branchTrue = true;
-						break;
-					case GREATER:
-						if(lop > rop)
-							branchTrue = true;
-						break;
-					case GTEQ:
-						if(lop >= rop)
-							branchTrue = true;
-						break;
-					case NOTEQUAL:
-						if(lop != rop)
-							branchTrue = true;
-						break;
-					case EQUAL:
-						if(lop == rop)
-							branchTrue = true;
-						break;
-				}
-				//evaluate condition
-				//	pc = condition->trueBranch;
-				//or
-				//	pc = condition->falseBranch;
+				if( evalCondition(condition) )
+					pc = condition->trueBranch;
+				else
+					pc = condition->falseBranch;
 				break;
+			}
 			case PRINT:
+			{
 				//code here
+				int leftOp = getSymbol(node->print_stmt->id)->ival;
+				printf("%d\n", leftOp);
 				pc = node->next;
 				break;
+			}
 			case GOTO:
 				pc = node->next;
 				break;
@@ -936,18 +1013,16 @@ void execute(struct programNode* program)
 		}
 
 	}
-
 }
 
 //
 ////
 //
-public int main(int argc, char const *argv[])
+int main(int argc, char const *argv[])
 {
 	struct programNode* prog_node;
-	prog_node = program();
+	prog_node = program_node();
 
-	execute(program);
-
+	execute(prog_node);
 	return 0;
 }
