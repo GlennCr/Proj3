@@ -414,7 +414,7 @@ struct primaryNode* primary()
 		}
 
 	}
-	
+
 	printf("!!Done parsing PRIMARY on line %d\n", _line_no);
 	return primar;
 }
@@ -426,15 +426,20 @@ struct conditionNode* condition()
 	cond = make_conditionNode();
 
 	_ttype = getToken();
+	printf("!!Read %s while parsing CONDITION on line %d\n", _token, _line_no);
 	if((_ttype == NUM) | (_ttype == ID))
 	{		
 		ungetToken();
+		printf("!!Parsing LOP of CONDITION on line %d\n", _line_no);
 		cond->left_operand = primary();
 		
 		_ttype = getToken();
+		printf("!!Read %s while parsing CONDITION on line %d\n", _token, _line_no);
 		if((_ttype == NOTEQUAL) | (_ttype == GREATER) | (_ttype == LESS) | (_ttype == LTEQ) | (_ttype == GTEQ) )
 		{	//has relop, infers there should be a primary next.
 			cond->relop = _ttype;
+
+			printf("!!Parsing ROP of CONDITION on line %d\n", _line_no);
 			cond->right_operand = primary();
 					}
 		else
@@ -459,53 +464,45 @@ struct exprNode* expr()
 		expr = make_exprNode();
 		ungetToken();
 		
-		printf("!!Reading LOP of EXP on line %d\n", _line_no);
+		printf("!!Reading LOP of EXPR on line %d\n", _line_no);
 		expr->left_operand = primary(); //get left operand.
 
 		_ttype = getToken();
+		printf("!!Read %s while parsing EXPR on line %d\n", _token, _line_no);
+	
 		if ( (_ttype == PLUS) | (_ttype == MINUS) | (_ttype == MULT) | (_ttype == DIV) )
 		{	
-			printf("!!Read BINOP on line %d\n", _line_no);
+			printf("!!Recognized BINOP %d\n", _line_no);
 		
 			expr->binop = _ttype;
 
 			_ttype = getToken();
+			printf("!!Read %s after parsing BINOP in EXPR on line %d\n", _token, _line_no);
+	
 			if ((_ttype == ID)| (_ttype == NUM))
 			{	
-				printf("!!Reading ROP of EXP on line %d\n", _line_no);
+				printf("!!Recognized ROP of EXP on line %d\n", _line_no);
 		
 				expr->tag = EXPR;
+
 				ungetToken();
 				expr->right_operand = primary(); //get right operand.
-
-				_ttype = getToken();
-				if(_ttype == SEMICOLON)
-				{
-					return expr;
-				}
-				else
-				{
-					syntax_error("expr. Expr expected SEMICOLON at end", _line_no);
-					exit(0);		
-				}
+				return expr; // we don't check for semi colon here. It's assign_stmt's job, not expr's
 			}
 			else
-			{
+			{ //saw binop but no primary after it!
 				syntax_error("expr. Primary expected for right operand!", _line_no);
 				exit(0);
 			}
 		} else	
-		if (_ttype == SEMICOLON)
-		{	expr->tag = PRIMARY;
-			//ungetToken();
+		{
+			expr->tag = PRIMARY;
+			ungetToken(); //dont remove! Needed to test if the expression ends here!
 			return expr;
 		} 
-		else
-		{	syntax_error("expr. PLUS, MINUS, DIV, MULT, or SEMICOLON expected", _line_no);
-			exit(0);
-		}
 	} else
-	{	syntax_error("expr. Primary expected for left operand!", _line_no);
+	{	//should be impossible to hit this, but just in case!
+		syntax_error("expr. Primary expected for left operand!", _line_no);
 		exit(0);
 	}
 }
@@ -521,10 +518,11 @@ struct assign_stmtNode* assign_stmt()
 	_ttype = getToken();
 	if (_ttype == EQUAL)
 	{	
-		printf("!!Parsing rigghts hand expr on line %d\n", _line_no);
+		printf("!!Parsing right hand EXPR on line %d\n", _line_no);
 		assignStmt->expr = expr();
 
 		_ttype = getToken();
+		printf("!!Read %s while parsing ASSIGN on line %d\n", _token, _line_no);
 		if(_ttype == SEMICOLON)
 		{
 			return assignStmt;
@@ -542,10 +540,13 @@ struct assign_stmtNode* assign_stmt()
 struct while_stmtNode* while_stmt()
 {	//has condition and a body. Condition must be evaluated 'true' to execute body.
 	struct while_stmtNode* wle_stmt;
-	wle_stmt = make_while_stmtNode();	
+	wle_stmt = make_while_stmtNode();
 
+	printf("!!Parsing CONDITION of WHILE on line %d\n", _line_no);
 	wle_stmt->condition = condition();
+	printf("!!Parsing BODY of WHILE on line %d\n", _line_no);
 	wle_stmt->body = body();
+
 	wle_stmt->condition->trueBranch = wle_stmt->body->stmt_list;
 }
 
@@ -555,7 +556,9 @@ struct if_stmtNode* if_stmt()
 	struct if_stmtNode* if_stm;
 	if_stm = make_if_stmtNode();
 
+	printf("!!Parsing CONDITION of IF on line %d\n", _line_no);
 	if_stm->condition = condition();
+	printf("!!Parsing BODY of IF on line %d\n", _line_no);
 	if_stm->body = body();
 	if_stm->condition->trueBranch = if_stm->body->stmt_list;
 
@@ -568,23 +571,25 @@ struct print_stmtNode* print_stmt()
 	print_stm = make_print_stmtNode();
 
 	_ttype = getToken();
+	printf("!!Read %s while parsing PRINT on line %d\n", _token, _line_no);
 	if(_ttype == ID)
 	{
 		print_stm->id = (char*) malloc(_tokenLength+1);
 		strcpy(print_stm->id, _token);
 
 		_ttype = getToken();
+		printf("!!Read %s while parsing PRINT on line %d\n", _token, _line_no);
 		if(_ttype == SEMICOLON)
 		{
 			return print_stm;
 		} else
 		{
-			syntax_error("stmtNode(). Expected semicolon.", _line_no);
+			syntax_error("print_stmt(). Expected semicolon.", _line_no);
 			exit(0);
 		}
 	} else
 	{
-		syntax_error("stmtNode(). Expected ID.", _line_no);
+		syntax_error("print_stmt(). Expected ID.", _line_no);
 		exit(0);
 	}
 	
