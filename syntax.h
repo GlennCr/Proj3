@@ -33,22 +33,7 @@ struct id_listNode {
 
 struct bodyNode {
 	struct stmtNode* stmt_list;
-};
-
-// struct stmt_listNode {
-// 	struct stmtNode* stmt;
-// 	struct stmt_listNode * stmt_list;
-// };
-
-// struct stmtNode {
-// 	int stmtType;           // WHILE, ASSIGN, IF, PRINT
-// 	union {
-// 		struct while_stmtNode* while_stmt;
-// 		struct if_stmtNode* if_stmt;
-// 		struct assign_stmtNode* assign_stmt;
-// 		struct print_stmtNode* print_stmt;
-// 	};
-// };     
+};  
 
 struct stmtNode {
 	int stmtType;           // WHILE, ASSIGN, IF, PRINT, NOOP, GOTO
@@ -62,10 +47,9 @@ struct stmtNode {
 	};
 };
 
-// struct goto_stmtNode {
-// 	struct stmtNode* target;	
+struct* stmtNode stmt_noop();
+struct* stmtNode stmt_goto();
 
-// };
 
 struct while_stmtNode {
 	struct conditionNode* condition;
@@ -147,3 +131,4 @@ struct	conditionNode* condition();
 
 void appendNode(struct stmtNode*, struct stmtNode*);
 int getVal(struct primaryNode*);
+void appendNoop(struct stmtNode*, struct stmtNode*);

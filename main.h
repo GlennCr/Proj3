@@ -16,7 +16,6 @@
 #define END 3
 #define DO 7
 #define THEN 8
-#define PRINT 9
 #define INT 10
 #define REAL 11
 #define STRING 12
@@ -53,3 +52,4 @@
 #define ASSIGN 	4 
 #define IF 		5
 #define WHILE 	6 
+#define PRINT 	9

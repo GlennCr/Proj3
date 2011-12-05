@@ -1,11 +1,9 @@
 #include "main.h"
-//to do
 
 //Review requirements
 //implement his get _token and stuff like that.
 
 //work on plan for code.
-
 char *_reserved[] = 
 {	"",
 	"VAR", 
@@ -44,11 +42,12 @@ char *_reserved[] =
     "NUM",	
     "ERROR",
 	"{",
-	"}"
+	"}",
+	"NOOP",
 };
 
 int printToken(int _ttype)
-{ //prints a defined _token's associated string
+{ 
    if (_ttype <= RESERVED)
    {   printf("%s\n",_reserved[_ttype]);
        return 1;
@@ -72,37 +71,47 @@ char _token[ MAX_TOKEN_LENGTH ];      // _token string
 int  _ttype;                        // _token type
 int  _activeToken = false;                  
 int  _tokenLength;
+int _depth = 0;
 
-int _var_count = 0;
-struct symbol* _var_table[ MAX_SYMTABLE_LENGTH ] ;		//contains table of vars
+int _sym_count = 0;
+struct symbol* _sym_table[ 100 ];//MAX_SYMTABLE_LENGTH) ] ;		//contains table of vars
 
 int _line_no = 1;
 
 //----------------------------------------------------------
 //mine
 
+void print_depth(int depth)
+{
+	int i;
+	for(i = 0; i < depth; i++)
+	{
+		//printf("!  ");
+	}
+}
+
 void push_symbol(char* varID)
 {
-	if(_var_count < MAX_SYMTABLE_LENGTH)
+	if(_sym_count < 100)//MAX_SYMTABLE_LENGTH)
 	{
 		int i;
-		for( i = 0; (i < _var_count) & (_var_count > 0); i++ )
+		for( i = 0; (i < _sym_count) & (_sym_count > 0); i++ )
 		{
-			if( strcmp(_var_table[_var_count]->id, varID) == 0)
+			if( strcmp(_sym_table[i]->id, varID) == 0)
 			{
 				syntax_error("add var declaration, aka 'push_symbol()'. Tried to declare var more than once!", _line_no);
 				exit(0);
 			}
 		}
 		//did not find this var in the var table. Can add it to the var table.
-		struct symbol* newvar;
-		newvar = make_symbol();
-		_var_table[_var_count] = newvar;
+		struct symbol* newsym;
+		newsym = make_symbol();
+		strcpy( newsym->id, varID);
+		newsym->ival = 0; //initial value of a var is 0.
 
-		strcpy( _var_table[_var_count]->id, varID);
-		_var_table[_var_count]->ival = 0; //initial value of a var is 0.
+		_sym_table[_sym_count] = newsym;
 
-		_var_count++;
+		_sym_count++;
 
 	}
 	else
@@ -145,7 +154,7 @@ int isKeyword(char *s)
 // AT LEAST ONE CALL TO getToken()
 // CALLING TWO ungetToken() WILL NOT UNGET TWO TOKENS 
 */
-void ungetToken() //did you mean ungetc()? 
+void ungetToken()
 {
     _activeToken = true;
 }
@@ -227,7 +236,8 @@ int scan_id_or_keyword()
 		return _ttype;
 	} else
 		return ERROR;
-}                            
+}
+                            
 int getToken()
 {	char c;
  
@@ -397,26 +407,23 @@ struct primaryNode* primary()
 		
 	if((_ttype == NUM) | (_ttype == ID))
 	{
-		printf("!!Read %s while parsing PRIMARY on line %d\n", _token, _line_no);
-		//primar->tag = _ttype;
 		if(_ttype == NUM)
 		{	primar->ival = atoi(_token);
-			strcpy(primar->id, "NUM");
+			primar->tag = NUM;
+			strcpy(primar->id, "NUM");			
 		}
 		else if(_ttype == ID)
 		{	
+			primar->tag = ID;
 			strcpy(primar->id, _token);
 		}
-		else
-		{
-			syntax_error("primary(). Expected id or NUM!", _line_no);
-			exit(0);
-		}
-
+		return primar;
 	}
-
-	printf("!!Done parsing PRIMARY on line %d\n", _line_no);
-	return primar;
+	else
+	{
+		syntax_error("primary(). Expected id or NUM!", _line_no);
+		exit(0);
+	}
 }
 
 //ok in syntax.h
@@ -426,30 +433,28 @@ struct conditionNode* condition()
 	cond = make_conditionNode();
 
 	_ttype = getToken();
-	printf("!!Read %s while parsing CONDITION on line %d\n", _token, _line_no);
+	
 	if((_ttype == NUM) | (_ttype == ID))
 	{		
 		ungetToken();
-		printf("!!Parsing LOP of CONDITION on line %d\n", _line_no);
-		cond->left_operand = primary();
 		
+		cond->left_operand = primary();
+
 		_ttype = getToken();
-		printf("!!Read %s while parsing CONDITION on line %d\n", _token, _line_no);
 		if((_ttype == NOTEQUAL) | (_ttype == GREATER) | (_ttype == LESS) | (_ttype == LTEQ) | (_ttype == GTEQ) )
 		{	//has relop, infers there should be a primary next.
-			cond->relop = _ttype;
 
-			printf("!!Parsing ROP of CONDITION on line %d\n", _line_no);
+			cond->relop = _ttype;
 			cond->right_operand = primary();
-					}
-		else
+			
+		} else
 		{	//no relop, ungetToken for further processing.
 			syntax_error("condition(). No rel op in condition!", _line_no);
 			exit(0);
 		}
 	}
 
-		return cond;
+	return cond;
 
 }
 
@@ -462,34 +467,30 @@ struct exprNode* expr()
 	if ((_ttype == ID)| (_ttype == NUM))
 	{	
 		expr = make_exprNode();
+		
 		ungetToken();
 		
-		printf("!!Reading LOP of EXPR on line %d\n", _line_no);
 		expr->left_operand = primary(); //get left operand.
 
 		_ttype = getToken();
-		printf("!!Read %s while parsing EXPR on line %d\n", _token, _line_no);
-	
+		
+		
 		if ( (_ttype == PLUS) | (_ttype == MINUS) | (_ttype == MULT) | (_ttype == DIV) )
 		{	
-			printf("!!Recognized BINOP %d\n", _line_no);
-		
 			expr->binop = _ttype;
 
 			_ttype = getToken();
-			printf("!!Read %s after parsing BINOP in EXPR on line %d\n", _token, _line_no);
+			
 	
 			if ((_ttype == ID)| (_ttype == NUM))
 			{	
-				printf("!!Recognized ROP of EXP on line %d\n", _line_no);
-		
 				expr->tag = EXPR;
 
 				ungetToken();
 				expr->right_operand = primary(); //get right operand.
+				
 				return expr; // we don't check for semi colon here. It's assign_stmt's job, not expr's
-			}
-			else
+			} else
 			{ //saw binop but no primary after it!
 				syntax_error("expr. Primary expected for right operand!", _line_no);
 				exit(0);
@@ -498,6 +499,7 @@ struct exprNode* expr()
 		{
 			expr->tag = PRIMARY;
 			ungetToken(); //dont remove! Needed to test if the expression ends here!
+			
 			return expr;
 		} 
 	} else
@@ -512,19 +514,21 @@ struct assign_stmtNode* assign_stmt()
 {	struct assign_stmtNode* assignStmt;
 
 	assignStmt = make_assign_stmtNode();
+	
 	assignStmt->id = (char *) malloc((_tokenLength+1)*sizeof(char));
 	strcpy(assignStmt->id,_token);
 	
 	_ttype = getToken();
 	if (_ttype == EQUAL)
 	{	
-		printf("!!Parsing right hand EXPR on line %d\n", _line_no);
+		
 		assignStmt->expr = expr();
 
 		_ttype = getToken();
-		printf("!!Read %s while parsing ASSIGN on line %d\n", _token, _line_no);
+		
 		if(_ttype == SEMICOLON)
 		{
+			
 			return assignStmt;
 		} else
 		{	syntax_error("assign_stmt. SEMICOLON expected", _line_no);
@@ -542,43 +546,40 @@ struct while_stmtNode* while_stmt()
 	struct while_stmtNode* wle_stmt;
 	wle_stmt = make_while_stmtNode();
 
-	printf("!!Parsing CONDITION of WHILE on line %d\n", _line_no);
-	wle_stmt->condition = condition();
-	printf("!!Parsing BODY of WHILE on line %d\n", _line_no);
+	wle_stmt->condition = condition();			
 	wle_stmt->body = body();
 
 	wle_stmt->condition->trueBranch = wle_stmt->body->stmt_list;
+	
+	return wle_stmt;
 }
 
-// looks good
 struct if_stmtNode* if_stmt()
 {
 	struct if_stmtNode* if_stm;
 	if_stm = make_if_stmtNode();
 
-	printf("!!Parsing CONDITION of IF on line %d\n", _line_no);
 	if_stm->condition = condition();
-	printf("!!Parsing BODY of IF on line %d\n", _line_no);
 	if_stm->body = body();
-	if_stm->condition->trueBranch = if_stm->body->stmt_list;
 
+	if_stm->condition->trueBranch = if_stm->body->stmt_list;
+	
+	return if_stm;
 }
 
-// looks good
 struct print_stmtNode* print_stmt() 
 {
 	struct print_stmtNode* print_stm;
 	print_stm = make_print_stmtNode();
 
 	_ttype = getToken();
-	printf("!!Read %s while parsing PRINT on line %d\n", _token, _line_no);
 	if(_ttype == ID)
-	{
+	{	
+	
 		print_stm->id = (char*) malloc(_tokenLength+1);
 		strcpy(print_stm->id, _token);
 
 		_ttype = getToken();
-		printf("!!Read %s while parsing PRINT on line %d\n", _token, _line_no);
 		if(_ttype == SEMICOLON)
 		{
 			return print_stm;
@@ -595,41 +596,92 @@ struct print_stmtNode* print_stmt()
 	
 }
 
-// looks good
 struct stmtNode* stmt()
 {
-	printf("!!Parsing STMT on line %d\n", _line_no);
 	struct stmtNode* stm;
 	stm = make_stmtNode();
 	
 	_ttype = getToken();
+	
 	if (_ttype == ID) // assign_stmt
-	{	
-		printf("!!Parsing as ASSIGN on line %d\n", _line_no);
-		stm->assign_stmt = assign_stmt();
+	{	stm->assign_stmt = assign_stmt();
 		stm->stmtType = ASSIGN;
+		//print_depth(_depth); //printf("!!stmt is %d at line%d\n", stm->stmtType, _line_no);	
 		//_ttype = getToken();
 	} else
 	if (_ttype == WHILE) // while_stmt
 	{	
-		printf("!!Parsing as WHILE on line %d\n", _line_no);
-		//struct stmtNode* gt;
-		//gt = stmt_goto();
-		//gt->next = stm;
-		stm->while_stmt = while_stmt();
 		stm->stmtType = WHILE;
+		//print_depth(_depth); //printf("!!stmt is %d at line%d\n", stm->stmtType, _line_no);
+		stm->while_stmt = while_stmt();
+		
+		// create noop
+		struct stmtNode* noop;
+		noop = make_stmtNode();
+		noop->stmtType = NOOP;
+		noop->next = NULL;
+		stm->next = noop;// point stm to noop
+		stm->next = noop;
+		
+		// create goto
+		struct stmtNode* gto;
+		gto = make_stmtNode();
+		gto->stmtType = GOTO;
+		// point goto to stm
+		gto->next = stm;
+
+		// point false branch to noop
+		stm->while_stmt->condition->falseBranch = noop;
+
+		// set the end of stmt_list(true branch) of while_stmt to point to goto
+		struct stmtNode* while_stmtlist = stm->while_stmt->condition->trueBranch;
+		//print_depth(_depth);printf("Setting trueBranch stmtlist to NOOP\n");
+		while((while_stmtlist->next != NULL))
+		{
+			//print_depth(_depth);//printf("!Next stmt is %d\n", while_stmtlist->stmtType);
+			while_stmtlist = while_stmtlist->next;
+		}
+		//print_depth(_depth);//printf("!Next stmt is %d, it's next is NULL\n", while_stmtlist->stmtType);
+		while_stmtlist->next = gto;
+		//print_depth(_depth);//printf("!set NULL to GOTO\n");
+
 	} else
 	if (_ttype == IF)
 	{	
-		printf("!!Parsing as IF on line %d\n", _line_no);
-		stm->if_stmt = if_stmt();
 		stm->stmtType = IF;
+		//print_depth(_depth); //printf("!!stmt is %d at line%d\n", stm->stmtType, _line_no);
+		stm->if_stmt = if_stmt();
+		
+		// if stmt ->next, set to noop
+		struct stmtNode* noop;
+		noop = make_stmtNode();
+		noop->stmtType = NOOP;
+		noop->next = NULL;
+
+		stm->next = noop;
+		
+		// set false branch of if_stmts false branch to noop
+		stm->if_stmt->condition->falseBranch = noop;
+		// set the end of stmt_list(true branch) of if_stmt to point to noop
+		struct stmtNode* if_stmtlist = stm->if_stmt->condition->trueBranch;
+
+		//print_depth(_depth);//printf("!Setting trueBranch stmtlist to NOOP\n");
+		while((if_stmtlist->next != NULL))
+		{
+			//print_depth(_depth);printf("Next stmt is %d\n", if_stmtlist->stmtType);
+			if_stmtlist = if_stmtlist->next;
+		}
+
+		//print_depth(_depth);//printf("!Next stmt is %d, it's next is NULL\n", if_stmtlist->stmtType);
+		if_stmtlist->next = noop;
+		//print_depth(_depth);//printf("!set NULL to NOOP\n");
+
 	} else
 	if (_ttype == PRINT)
 	{	
-		printf("!!Parsing as PRINT on line %d\n", _line_no);
 		stm->print_stmt = print_stmt();
 		stm->stmtType = PRINT;
+		//print_depth(_depth); //printf("!!stmt is %d at line%d\n", stm->stmtType, _line_no);
 	} else // syntax error
 	{
 		syntax_error("stmt. Statement expected", _line_no);
@@ -639,84 +691,47 @@ struct stmtNode* stmt()
 	return stm;
 }
 
-struct stmtNode* stmt_noop()
-{
-	struct stmtNode* noop;
-	noop = make_stmtNode();
-	noop->stmtType = NOOP;
-	noop->next = NULL;
-	return noop;
-
-}
-
-struct stmtNode* stmt_goto()
-{
-	struct stmtNode* gt;
-	gt = make_stmtNode();
-	gt->stmtType = GOTO;
-	gt->next = NULL;
-	return gt;
-
-}
-
-//looks good
-//What it Does:
-//Creates a statement node, the actual node we'll keep.
-//Sets this statement's next value and sets up its unions values etc.
-
 struct stmtNode* stmt_list()
-{
+{	
+	
 	struct stmtNode* st;
 	struct stmtNode* stL;
 
 	st = make_stmtNode();
 	st->next = NULL;
+	
 	st = stmt();
 
 	_ttype = getToken();
 	if ((_ttype == ID)|(_ttype == WHILE) | (_ttype == IF) | (_ttype == PRINT))
 	{	ungetToken();
-		
+		_depth++;	
+
 		stL = make_stmtNode();
+		stL->next = NULL;
 		stL = stmt_list();
 
-		if(st->stmtType == IF)
-		{
-			printf("!!Linking IF on line %d\n", _line_no);
-			struct stmtNode* noop;
-			noop = stmt_noop();
-			noop->next = stL;
-			
-			st->next = noop; //appending noop to st
-			st->if_stmt->condition->falseBranch = noop; //set false branch to noop.
-			appendNode(st->if_stmt->condition->trueBranch, noop); //append noop to trueBranch of condition.
-
-			return st;
-			
+		if((st->stmtType == WHILE) | (st->stmtType == IF))
+		{	
+			st->next->next = stL; //setting stL in to st's noop
+			//print_depth(_depth); //printf("!IFs noop is set to stmt_list %d\n", stL->stmtType);
 		} else
-		if(st->stmtType == WHILE)
 		{
-			printf("!!Linking WHILE on line %d\n", _line_no);
-			struct stmtNode* noop;
-			noop = stmt_noop();
-			noop->next = stL;
-
-			struct stmtNode* gt;
-			gt = stmt_goto();
-			gt->next = st;
-
-			st->next = noop; //appending noop to st
-			st->if_stmt->condition->falseBranch = noop; //set false branch to noop of st.
-			appendNode(st->if_stmt->condition->trueBranch, gt); //append goto to trueBranch of conditoion.
-
-			return st;
+			//print_depth(_depth); //printf("!stmt %d next is set to stmt_list %d\n", st->stmtType, stL->stmtType);
+			st->next = stL;	//non-condition statements do not have a noop. Just set it's next.
 		}
+		_depth--;
+
+		//ungetToken();
+		return st;	
 	} else
 	{
+		
+		//print_depth(_depth); //printf("!stmt %d next is set to NULL\n", st->stmtType);
+		_depth--;
 		ungetToken();
 		return st;
 	}
-	
 }
 
 // looks good
@@ -725,11 +740,24 @@ struct bodyNode* body()
 
 	_ttype = getToken();
 	if (_ttype == LBRACE)
-	{	bod = make_bodyNode();
+	{	
+		//print_depth(_depth); //printf("!{{\n");
+		
+		bod = make_bodyNode();
+		_depth++;
 		bod->stmt_list = stmt_list();
+		
 		_ttype = getToken();
+		
+		
 		if (_ttype == RBRACE)
+		{	
+			//print_depth(_depth); //printf("!}}\n");
+			_depth--;
+			//print_depth(_depth); //printf("!Returning bod\n");
+			
 			return bod;
+		}
 		else
 		{	syntax_error("body. RBRACE expected", _line_no);
 			exit(0); 
@@ -743,22 +771,24 @@ struct bodyNode* body()
 //looks good
 struct id_listNode* id_list()
 {
-	printf("!!making an id list\n");
-	struct id_listNode* idList;
-	idList = make_id_listNode();
+	
+	struct id_listNode* idLst;
+	idLst = make_id_listNode();
 
 	_ttype = getToken();
 	if (_ttype == ID)
 	{	
-		idList->id = (char*) malloc(_tokenLength+1);
-		strcpy(idList->id, _token);
+		idLst->id = (char*) malloc(_tokenLength+1);
+		strcpy(idLst->id, _token);
+
 		
-		push_symbol(idList->id); //will throw error on it's own.
+			push_symbol(idLst->id); //will throw error on it's own.
 		
 		_ttype = getToken();
 		if (_ttype == COMMA)
 		{
-			idList->id_list = id_list();
+			
+			idLst->id_list = id_list();
 		} else
 		{ //if not a comma, put it back
 			ungetToken();
@@ -768,14 +798,15 @@ struct id_listNode* id_list()
 		exit(0);
 	}
 
-	return idList;
+	
+	return idLst;
 
 }
 
 // looks good
 struct var_declNode* var_decl()
 {
-	printf("!!making a var_declNode\n");
+	
 	struct var_declNode* varDecl;
 	varDecl = make_var_declNode();
 
@@ -792,23 +823,25 @@ struct var_declNode* var_decl()
 	}
 }
 
-// looks good
 struct declNode* decl()
 {	
-	printf("!!Making a decl node\n");
+	
 	struct declNode* dec;
 	dec = make_declNode();
 
 	_ttype = getToken();
-	printf("!!got %s\n", _token);
 	if (_ttype == VAR)
-		{	//var_decl section should start with VAR
+	{	//var_decl section should start with VAR
+		
 		_ttype = getToken();
-		printf("!!got %s\n", _token);
 		if(_ttype == ID)
    		{ //VAR should be followed immediately by an ID, or nothing. (no ID's)
    			ungetToken();
    			dec->var_decl_section = var_decl();
+		}
+		else
+		{
+			syntax_error("decl(). No ID found after VAR section token.", _line_no);
 		}
 	} else
 	{	ungetToken();
@@ -826,7 +859,7 @@ struct programNode* program_node()
 	if ((_ttype == VAR) | (_ttype == LBRACE))
 	{	ungetToken();  
 		prog->decl = decl();
-		printf("!!Done parsing declarations\n\n");
+		
 		prog->body = body();
 		return prog;
 	} else
@@ -835,45 +868,40 @@ struct programNode* program_node()
 	}
 }
 
-//Appends a node to a statement list.
-void appendNode(struct stmtNode* stmt_list, struct stmtNode* node)
-{
-	if (stmt_list->next == NULL)
-	{
-		stmt_list->next = node; //hit end of list, set NOOP and return.
-	} else
-	{
-		appendNode(stmt_list->next, node); //not end of list, continue.
-	}
-}
-
-struct symbol* getSymbol(char* id)
-{
 	//search the var table for this id.
 	//return that node if found
 	//error out if not found.
+struct symbol* getSymbol(char* id)
+{
+	
 	int i;
-	for(i = 0; i < _var_count; i++)
+	for(i = 0; i < _sym_count; i++)
 	{
-		if(strcmp(_var_table[i]->id, id) == 0)
-			return _var_table[i]; 
+		if(strcmp(_sym_table[i]->id, id) == 0)
+		{
+			
+			return _sym_table[i]; 
+		}
 	}
 	
-	printf("%s not found in symbol table.\n", id);
-	exit(0);	
+	//printf("#%s not found in symbol table.\n", id);
+	exit(0);
 }
 
-int getVal(struct primaryNode* prim)
-{
 	//return the value of a primary.
 	//easy if it's a num
 	//needs a func call to getVar if not.
+int getVal(struct primaryNode* prim)
+{
 	if(prim->tag == NUM)
 	{
+		
+			
 		return prim->ival;
 	} else
 	{
 		struct symbol* out;
+			
 		out = getSymbol(prim->id);
 		return out->ival;
 
@@ -887,53 +915,84 @@ bool evalCondition(struct conditionNode* cond)
 
 	lop = getVal(cond->left_operand);
 	rop = getVal(cond->right_operand);
-	
+
 	switch(cond->relop)
 	{
-		case LESS:
+		case LESS:	
+			
+			//printf("# ( %s < %s ", cond->left_operand->id, cond->right_operand->id);
 			if(lop < rop)
+			{	//printf("# is true\n");
 				return true;
+			}
 			break;
 		case LTEQ:
+		
+			//printf("# ( %s <= %s ", cond->left_operand->id, cond->right_operand->id);
 			if(lop <= rop)
+			{	//printf("# is true\n");
 				return true;
+			}
 			break;
 		case GREATER:
+		
+			//printf("# ( %s > %s ) ", cond->left_operand->id, cond->right_operand->id);
 			if(lop > rop)
+			{
+				//printf("# is true\n");
 				return true;
+			}
 			break;
 		case GTEQ:
+		
+			//printf("# ( %s >= %s ", cond->left_operand->id, cond->right_operand->id);
 			if(lop >= rop)
+			{	//printf("# is true\n");
 				return true;
+			}
 			break;
 		case NOTEQUAL:
+		
+			//printf("# ( %s != %s ", cond->left_operand->id, cond->right_operand->id);
 			if(lop != rop)
+			{
+				//printf("# is true\n");
 				return true;
+			}
 			break;
 		case EQUAL:
+		
+			//printf("#%s == %s ", cond->left_operand->id, cond->right_operand->id);
 			if(lop == rop)
+			{	//printf("# is true\n");
 				return true;
+			}
 			break;
 	}
+
+	//printf("# is false\n");
 	return false;
 }
 
 void execute(struct programNode* program)
 {
+	//printf("#starting execution\n");
 	struct stmtNode* pc;
 	struct stmtNode* node;
-	pc = program->body->stmt_list; //set program counter to first node of the program's body.
 
+	pc = program->body->stmt_list; //set program counter to first node of the program's body.
+	//printf("#Got top stmt_list\n");
 	while(pc != NULL)
 	{
-		
+		//printf("#Looping\n");
 		node = pc;
 
 		switch(pc->stmtType) 
 		{
 			case ASSIGN:
 			{ 
-							
+				//printf("#Executing ASSIGN - ");
+				
 				struct assign_stmtNode* assign_stmt;
 				assign_stmt = pc->assign_stmt;
 				
@@ -942,78 +1001,107 @@ void execute(struct programNode* program)
 				
 				struct exprNode* expr;
 				expr = assign_stmt->expr;
-				
 
 				if(expr->tag == PRIMARY)
 				{
 					int valta = getVal(expr->left_operand);
+					
 					leftOp->ival = valta;
+					//printf("#%s set to %d", leftOp->id, leftOp->ival);
+							
 				} else
 				if(expr->tag == EXPR)
 				{
 					int exp_lop = getVal(expr->left_operand);
 					int exp_rop = getVal(expr->right_operand);
 					int exp_binop = expr->binop;
+						
 					switch(exp_binop)
 					{
 						case PLUS:
 							leftOp->ival = exp_lop + exp_rop;
+							//printf("#%s set to %d", leftOp->id, leftOp->ival);
+							
 							break;
 						case MINUS:
 							leftOp->ival = exp_lop - exp_rop;
+							//printf("#%s set to %d", leftOp->id, leftOp->ival);
+							
 							break;
 						case MULT:
 							leftOp->ival = exp_lop * exp_rop;
+							//printf("#%s set to %d", leftOp->id, leftOp->ival);
+							
 							break;
 						case DIV:
 							leftOp->ival = (int) (exp_lop / exp_rop) - ((exp_lop / exp_rop)% 1) ;
+							//printf("#%s set to %d", leftOp->id, leftOp->ival);
+							
 							break;
 						default:
-							syntax_error("execute assign. Expected operator!", _line_no);
+							syntax_error("execute assign. Expected operator!\n", _line_no);
 							exit(0);
 					}
 				}
-
+					
 				pc = node->next;
-					break;
-			}
 				
+			}
+				break;
 			case IF:
 			{
-				//code here
+				//printf("#Executing IF\n");
 				struct conditionNode* condition;
 				condition = node->if_stmt->condition;
-
+				
+				//printf("#checking condition\n");
 				if( evalCondition(condition) )
+				{
 					pc = condition->trueBranch;
+				}
 				else
+				{
 					pc = condition->falseBranch;
+				}
 				break;
 			}
 			case WHILE:
 			{
+				//printf("#Executing WHILE\n");
 				struct conditionNode* condition;
 				condition = node->while_stmt->condition;
 
 				if( evalCondition(condition) )
+				{
 					pc = condition->trueBranch;
+				}
 				else
+				{
 					pc = condition->falseBranch;
+				}
 				break;
 			}
 			case PRINT:
 			{
-				//code here
+				//printf("#Executing PRINT\n");
 				int leftOp = getSymbol(node->print_stmt->id)->ival;
+				
 				printf("%d\n", leftOp);
 				pc = node->next;
+			
 				break;
 			}
 			case GOTO:
+				//printf("#hit GOTO\n");
 				pc = node->next;
 				break;
 			case NOOP:
+				//printf("#hit NOOP\n");
 				pc = node->next;
+				break;
+
+			default:
+				//printf("#Nothing to run!");
 				break;
 		}
 
@@ -1027,6 +1115,7 @@ int main(int argc, char const *argv[])
 {
 	struct programNode* prog_node;
 	prog_node = program_node();
+	//printf("!Program Node complete.\n");
 
 	execute(prog_node);
 	return 0;
