@@ -5,11 +5,10 @@
   PARSE TREE TYPES
 ------------------------------------------------------------*/
 
-struct symbol_entry
-{   bool is_type;
-	int type_no;
-	char symname[100]; //hurgh, this does not sit well with me....
-	int can_print;
+struct symbol
+{
+	char id[100];
+	int ival;
 };
 
 struct programNode {
@@ -19,21 +18,12 @@ struct programNode {
 
 struct declNode {
 	// A NULL field means that the section is empty  
-	struct var_decl_sectionNode* var_decl_section;      
-};
-
-struct var_decl_sectionNode {
-	struct var_decl_listNode* var_decl_list;          
-};
-
-struct  var_decl_listNode {
-	struct var_declNode * var_decl;
-        struct var_decl_listNode* var_decl_list;
+	struct var_declNode* var_decl_section;      
 };
 
 struct var_declNode {
 	struct id_listNode* id_list;
-	struct type_nameNode* type_name;
+	struct primaryNode* var;
 };
 
 struct id_listNode {
@@ -42,23 +32,24 @@ struct id_listNode {
 };
 
 struct bodyNode {
-	struct stmt_listNode* stmt_list;
-};
-
-struct stmt_listNode {
-	struct stmtNode* stmt;
-	struct stmt_listNode * stmt_list;
-};
+	struct stmtNode* stmt_list;
+};  
 
 struct stmtNode {
-	int stmtType;           // WHILE, ASSIGN, IF, PRINT
+	int stmtType;           // WHILE, ASSIGN, IF, PRINT, NOOP, GOTO
+	struct stmtNode* next;
 	union {
 		struct while_stmtNode* while_stmt;
-		struct if_stmtNode* assign_stmt;
+		struct if_stmtNode* if_stmt;
 		struct assign_stmtNode* assign_stmt;
-		struct print_stmtNode* assign_stmt;
+		struct print_stmtNode* print_stmt;
+		//struct goto_stmtNode* goto_stmt;
 	};
-};     
+};
+
+struct* stmtNode stmt_noop();
+struct* stmtNode stmt_goto();
+
 
 struct while_stmtNode {
 	struct conditionNode* condition;
@@ -68,12 +59,15 @@ struct while_stmtNode {
 struct if_stmtNode {
 	struct conditionNode* condition;
 	struct bodyNode* body;
+
 };
 
 struct conditionNode {
 	struct primaryNode* left_operand;
 	int relop;
 	struct primaryNode* right_operand;
+	struct stmtNode* trueBranch;
+	struct stmtNode* falseBranch;
 };
 
 struct assign_stmtNode {
@@ -87,17 +81,16 @@ struct print_stmtNode {
 
 struct exprNode {	
 	struct primaryNode* primary;
-	int operator;	// PLUS , MINUS, MULT, OR DIV
+	int binop;	// PLUS , MINUS, MULT, OR DIV
                     // or NO-OP
     int tag;        // PRIMARY or EXPR
     //EXPR must have an operator!
-	struct primaryNode * leftOperand; //could be null
-	struct primaryNode * rightOperand; //could be null
+	struct primaryNode * left_operand; //could be null
+	struct primaryNode * right_operand; //could be null
 };
 
 struct primaryNode {
 	int tag;	// NUM or ID
-	int type_no;	//>=10
 	int ival;
 	char id[100];
 };
@@ -106,41 +99,36 @@ struct primaryNode {
 /*------------------------------------------------------------------------
   PARSE TREE FUNCTIONS
 --------------------------------------------------------------------------*/
+struct symbol*					make_symbol();
 struct programNode* 			make_programNode();
-struct declNode* 				make_declNode();
-struct var_decl_sectionNode* 	make_var_decl_sectionNode();
-struct var_decl_listNode* 		make_var_decl_listNode();
+struct declNode*	 			make_declNode();
 struct var_declNode* 			make_var_declNode();
 struct id_listNode* 			make_id_listNode();
-
 struct bodyNode* 				make_bodyNode();
-struct stmt_listNode* 			make_stmt_listNode();
 struct stmtNode* 				make_stmtNode();
+struct assign_stmtNode* 		make_assign_stmtNode();
 struct while_stmtNode* 			make_while_stmtNode();
 struct if_stmtNode* 			make_if_stmtNode();
-struct assign_stmtNode* 		make_assign_stmtNode();
 struct print_stmtNode* 			make_print_stmtNode();
-struct condition_node*			make_condition_node();
 struct exprNode* 				make_exprNode();
 struct primaryNode* 			make_primaryNode();
+struct condition_node*			make_condition_node();
 
-/*------------------------------------------------------------------------
-  PARSING FUNCTIONS
---------------------------------------------------------------------------*/
-//struct 
-struct programNode* program();
-struct	declNode*  decl();
-struct	var_decl_sectionNode* var_decl_section();
-struct		var_decl_listNode* var_decl_list();
-struct			var_declNode* var_decl();
-struct					id_listNode* id_list();
+struct 	programNode* program_node();
+struct	declNode* decl();
+struct	var_declNode* var_decl();
+struct	id_listNode* id_list();
 struct	bodyNode* body();
-struct		stmt_listNode* stmt_list();
-struct			stmtNode* stmt();
-struct				//stmt_listNode* stmt_list();
-struct				assign_stmtNode* assign_stmt();
-struct				while_stmtNode* while_stmt();
-struct				if_stmtNode*	if_stmt();
-struct					conditionNode* condition();
-struct					exprNode* expr();
-struct					primaryNode* primary();
+struct	stmtNode* stmt();
+struct	assign_stmtNode* assign_stmt();
+struct	while_stmtNode* while_stmt();
+struct	if_stmtNode*	if_stmt();
+struct 	print_stmtNode* print_stmt();
+
+struct	primaryNode* primary();
+struct 	exprNode* expr();
+struct	conditionNode* condition();
+
+void appendNode(struct stmtNode*, struct stmtNode*);
+int getVal(struct primaryNode*);
+void appendNoop(struct stmtNode*, struct stmtNode*);
